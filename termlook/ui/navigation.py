@@ -74,8 +74,8 @@ class Navigation:
                 box.pack_start(title_button(tab.name,
                     lambda tid=tid: self.controller.select_tab(tid),
                     lambda tid=tid: self.controller.rename_tab(tid), self.dispatch), False, False, 0)
-                box.pack_start(button('×', 'Close tab',
-                    lambda _, tid=tid: self.dispatch(lambda: self.controller.close_tab(tid))), False, False, 0)
+                # box.pack_start(button('×', 'Close tab',
+                #     lambda _, tid=tid: self.dispatch(lambda: self.controller.close_tab(tid))), False, False, 0)
                 self.tabs.pack_start(box, False, False, 0)
                 self.headers[tid] = box
             self.tabs.show_all()
