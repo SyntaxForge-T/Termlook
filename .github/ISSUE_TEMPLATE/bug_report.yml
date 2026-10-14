@@ -23,7 +23,7 @@ body:
     attributes:
       label: Environment
       description: TermLook version, Linux distribution, desktop, X11 or Wayland, and shell.
-      placeholder: TermLook 0.1.1, Ubuntu 24.04, GNOME, Wayland, zsh
+      placeholder: TermLook 0.2.0, Ubuntu 24.04, GNOME, Wayland, zsh
     validations:
       required: true
   - type: dropdown

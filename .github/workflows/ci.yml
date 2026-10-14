@@ -9,62 +9,62 @@ on:
 permissions:
   contents: read
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   tests:
-    name: Tests
+    name: Rust tests and native package
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Install GTK and test dependencies
+      - name: Install native build and test dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3 python3-gi librsvg2-common gir1.2-gtk-3.0 gir1.2-vte-2.91 gir1.2-ayatanaappindicator3-0.1 xvfb xauth dbus-x11
-      - name: Check Python and shell syntax
+          sudo apt-get install -y build-essential pkg-config libgtk-3-dev libvte-2.91-dev libayatana-appindicator3-1 librsvg2-common xvfb xauth xdotool dbus-x11 desktop-file-utils
+          rustup toolchain install stable --profile minimal --component rustfmt,clippy
+          rustup default stable
+      - name: Format, lint and unit tests
         run: |
-          /usr/bin/python3 -m compileall -q termlook scripts tests
-          sh -n packaging/debian/termlook
-      - name: Unit tests
-        run: /usr/bin/python3 -m unittest discover -s tests -v
+          cargo fmt --check
+          cargo clippy --locked --all-targets -- -D warnings
+          cargo test --locked
+          for script in scripts/*.sh tests/*.sh; do sh -n "$script"; done
       - name: GTK and VTE lifecycle regression
         env:
+          GDK_BACKEND: x11
           G_DEBUG: fatal-criticals
           GSETTINGS_BACKEND: memory
+          GIO_USE_VFS: local
+          NO_AT_BRIDGE: '1'
+        run: timeout 90s dbus-run-session -- xvfb-run -a cargo test --locked --bin termlook gui_lifecycle -- --ignored --test-threads=1
+      - name: Build Debian package
+        run: ./scripts/build_deb.sh
+      - name: Install and validate package
+        env:
+          GDK_BACKEND: x11
+          G_DEBUG: fatal-criticals
+          GSETTINGS_BACKEND: memory
+          GIO_USE_VFS: local
           NO_AT_BRIDGE: '1'
         run: |
-          timeout 90s dbus-run-session -- xvfb-run -a /usr/bin/python3 tests/smoke_gui.py
-          timeout 90s dbus-run-session -- xvfb-run -a /usr/bin/python3 tests/smoke_lazy.py
-
-  deb:
-    name: DEB build
-    needs: tests
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Build Debian package
-        run: /usr/bin/python3 scripts/build_deb.py
-      - name: Install and validate package
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ./dist/termlook_*_all.deb xvfb xauth xdotool dbus-x11 desktop-file-utils
+          sudo apt-get install -y ./dist/termlook_*_amd64.deb
           desktop-file-validate /usr/share/applications/io.termlook.TermLook.desktop
           cd /tmp
-          G_DEBUG=fatal-criticals GSETTINGS_BACKEND=memory NO_AT_BRIDGE=1 timeout 90s dbus-run-session -- xvfb-run -a /usr/bin/python3 "$GITHUB_WORKSPACE/tests/smoke_deb.py"
+          timeout 90s dbus-run-session -- xvfb-run -a "$GITHUB_WORKSPACE/tests/smoke_package.sh"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: termlook-deb
-          path: dist/*.deb
+          path: dist/*_amd64.deb
           if-no-files-found: error
           retention-days: 30
 
   release:
     name: Publish release
-    needs: deb
+    needs: tests
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -84,4 +84,4 @@ jobs:
       - name: Publish new version
         env:
           GH_TOKEN: ${{ github.token }}
-        run: /usr/bin/python3 scripts/publish_release.py
+        run: ./scripts/publish_release.sh

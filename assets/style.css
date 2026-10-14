@@ -1,0 +1,121 @@
+
+.preferences-window { background: #1c1d24; }
+.pref-sidebar { background: #18191f; border-right: 1px solid #292b35; padding: 16px 8px; }
+.pref-sidebar list { background: #18191f; }
+.pref-sidebar row label { color: #a9adbd; }
+.pref-sidebar row:selected label { color: #eef0f7; }
+.preferences-window viewport { border: none; }
+.pref-sidebar row { padding: 9px 12px; margin: 3px 0; }
+.pref-title { font-size: 23px; font-weight: bold; color: #efeff5; }
+.pref-muted { color: #9699aa; font-size: 12px; }
+.pref-row-title { color: #dedfe9; font-size: 13px; font-weight: 500; }
+.pref-card { background: #252730; border: 1px solid #30333e; border-radius: 12px; }
+.pref-card separator { background: #323540; min-height: 1px; margin: 0 14px; }
+.pref-note { color: #a6bdb7; font-size: 12px; }
+.pref-section { color: #9399ae; font-size: 10px; font-weight: bold; letter-spacing: 1px; }
+button.pref-primary { background: #a5c7c0; color: #182923; font-weight: bold; padding: 9px 18px; }
+button.pref-primary:hover { background: #bddbd5; }
+.pref-error { color: #efa5a5; }
+.preferences-window switch { border-radius: 14px; background: #383c49; }
+.preferences-window switch:checked { background: #7ba69b; }
+.preferences-window switch slider { border-radius: 12px; background: #e4ece9; }
+.preferences-window entry, .preferences-window spinbutton { background: #1e2028; color: #e1e3ed; border: 1px solid #3a3e4c; border-radius: 7px; }
+.preferences-window .keycap { background: #353947; border: 1px solid #464c5d; border-bottom-width: 2px; border-bottom-color: #596174; border-radius: 5px; padding: 5px 7px; color: #e0e4f0; font-size: 11px; }
+
+.terminal-pane { border: 1px solid transparent; border-radius: 6px; transition: border-color 160ms ease, opacity 160ms ease; }
+.terminal-pane.drag-source { opacity: 0.48; }
+.terminal-pane.drop-target, .terminal-pane.pane-landed { border-color: #a5c7c0; }
+.pane-header { transition: background-color 160ms ease; border-radius: 5px; }
+.pane-header.drop-ready { background: #2d3539; }
+.drop-target .pane-header { background: #405653; color: #e0f5ef; }
+.pane-grip { padding: 4px 8px; border-radius: 5px; }
+.pane-grip:hover { background: #353945; color: #e0e4ee; }
+.terminal-pane.focused { border-color: #5f8f86; }
+paned > separator { min-width: 6px; min-height: 6px; background: #343744; transition: background-color 150ms ease; }
+paned > separator:hover, paned > separator:active { background: #9ab8b3; }
+.pane-header { color: #92949f; font-size: 10px; }
+window { background: #191a20; color: #c6c6cd; }
+headerbar { background: #191a20; border: none; box-shadow: none; min-height: 28px; }
+headerbar .title { font-size: 11px; font-weight: normal; color: #777983; }
+window.main-window { border-radius: 0; }
+window.main-window decoration { border-radius: 0; box-shadow: 0 4px 16px 2px rgba(0, 0, 0, 0.45); }
+window.main-window decoration:backdrop { box-shadow: 0 4px 16px 2px rgba(0, 0, 0, 0.25); }
+window.main-window > .titlebar, window.main-window > .titlebar:backdrop { min-height: 0; padding: 0; background: #191a20; color: #c6c6cd; border: none; border-radius: 0; box-shadow: none; }
+#heading { padding: 6px; }
+button { background: transparent; color: #92949f; border: none; box-shadow: none; border-radius: 7px; min-height: 22px; padding: 3px 8px; }
+button:hover { background: #2d2f38; color: #eeedf3; }
+button:focus { outline-color: #8c92aa; }
+#sidebar { padding: 6px; }
+#brand { color: #8a8c98; font-size: 10px; font-weight: bold; letter-spacing: 1px; }
+list { background: transparent; }
+row { border-radius: 8px; margin: 2px 0; padding: 3px; }
+row:selected { background: #2b2d36; }
+row:selected label { color: #e3e3e9; }
+#surface { background: #202127; }
+#tabbar { background: #202127; padding: 6px; }
+.terminal-tab { border-radius: 7px; margin-right: 4px; }
+.terminal-tab:hover { background: #2a2c34; }
+.terminal-tab.active { background: #32343e; box-shadow: inset 0 -2px #a5c7c0; }
+.terminal-tab.active button { color: #ecebf3; }
+.terminal-tab button { font-size: 12px; }
+#status { color: #e3aa9b; padding: 6px 14px; font-size: 11px; }
+entry { background: #2d2f38; color: #eeeef3; border-radius: 7px; border-color: #41434e; }
+.keycap { background: #2d2f38; border-radius: 5px; padding: 5px 10px; font-family: monospace; }
+.guide-title { font-size: 20px; font-weight: bold; color: #eeedf3; }
+notebook header { background: #191a20; border-color: #30323a; }
+notebook stack { background: #202127; }
+notebook tab { padding: 10px 20px; }
+notebook tab:checked { background: #30323a; box-shadow: inset 0 -2px #a5c7c0; }
+notebook tab:checked label { color: #eef0f7; }
+
+window.main-window:not(.maximized):not(.fullscreen):not(.tiled):not(.tiled-top):not(.tiled-bottom):not(.tiled-left):not(.tiled-right) decoration { border-radius: 12px; }
+window.main-window:not(.maximized):not(.fullscreen):not(.tiled):not(.tiled-top):not(.tiled-bottom):not(.tiled-left):not(.tiled-right).csd { border-radius: 0 0 12px 12px; }
+window.main-window:not(.maximized):not(.fullscreen):not(.tiled):not(.tiled-top):not(.tiled-bottom):not(.tiled-left):not(.tiled-right) > .titlebar { border-radius: 12px 12px 0 0; }
+window.main-window:not(.maximized):not(.fullscreen):not(.tiled):not(.tiled-top):not(.tiled-bottom):not(.tiled-left):not(.tiled-right) #tabbar { border-top-right-radius: 12px; }
+window.main-window:not(.maximized):not(.fullscreen):not(.tiled):not(.tiled-top):not(.tiled-bottom):not(.tiled-left):not(.tiled-right) #surface { border-bottom-right-radius: 12px; }
+
+/* Toolbars and sidebar */
+.tool-button { min-width: 26px; min-height: 26px; padding: 2px 8px; font-size: 14px; }
+.tool-button:active { background: #3a3d48; }
+.footer-button { background: #23252d; color: #b4b6c2; padding: 7px 8px; font-size: 12px; }
+.footer-button:hover { background: #2d2f38; color: #f0eff5; }
+.workspace { border-radius: 8px; }
+.workspace:hover { background: #24262e; }
+.workspace.active { background: #2b2d36; box-shadow: inset 3px 0 #a5c7c0; }
+.workspace.active button { color: #e8e8ee; }
+headerbar separator, #tabbar separator { background: #30323a; min-width: 1px; }
+tooltip, tooltip.background { background: #2d2f38; color: #eeedf3; border-radius: 6px; }
+tooltip label { padding: 2px 4px; }
+scrollbar slider { min-width: 6px; min-height: 6px; border-radius: 6px; background: #4a4d5a; }
+scrollbar slider:hover { background: #666a7a; }
+
+/* Dialog buttons: the last one (Apply, Save, Close) is the primary action */
+.dialog-action-area button { background: #30323c; color: #e3e3e9; padding: 7px 18px; }
+.dialog-action-area button:hover { background: #3b3e4a; }
+.dialog-action-area button:last-child { background: #a5c7c0; color: #182923; font-weight: bold; }
+.dialog-action-area button:last-child:hover { background: #bddbd5; }
+.dialog-action-area { padding: 10px 14px; }
+
+/* Settings */
+.pref-row { background: #252730; border: 1px solid #30333e; border-radius: 10px; padding: 11px 14px; }
+.pref-success { color: #a9d794; }
+.preferences-window button.text-button { background: #30323c; color: #e3e3e9; }
+
+/* Help */
+.help-title { font-size: 22px; font-weight: bold; color: #efeff5; }
+.help-window stackswitcher button { background: #252730; color: #b4b6c2; padding: 6px 18px; border-radius: 0; }
+.help-window stackswitcher button:first-child { border-radius: 8px 0 0 8px; }
+.help-window stackswitcher button:last-child { border-radius: 0 8px 8px 0; }
+.help-window stackswitcher button:checked { background: #a5c7c0; color: #182923; font-weight: bold; }
+.help-card { background: #252730; border: 1px solid #30333e; border-radius: 12px; padding: 14px 16px; }
+.help-card-title { font-size: 14px; font-weight: bold; color: #efeff5; }
+.help-card-body { color: #b4b6c2; font-size: 12px; }
+.help-row { background: #252730; border: 1px solid #30333e; border-radius: 8px; padding: 8px 12px; }
+.help-row-title { color: #dedfe9; font-size: 13px; }
+.help-gesture { color: #a6bdb7; font-size: 12px; }
+.help-code { font-family: monospace; font-size: 12px; color: #c7d9d4; background: #1e2028; border-radius: 7px; padding: 8px 10px; }
+.help-window .keycap { background: #353947; border: 1px solid #464c5d; border-bottom-width: 2px; border-bottom-color: #596174; border-radius: 5px; padding: 3px 8px; color: #e0e4f0; font-size: 11px; }
+
+.terminal-stack, .terminal-stack > box { background: transparent; }
+.dialog-action-area button.destructive-action { background: #ba4d5c; color: #ffffff; }
+.dialog-action-area button.destructive-action:hover { background: #d26372; }

@@ -1,199 +1,235 @@
-<p align="center">
-  <img src="termlook/assets/io.termlook.TermLook.svg" width="88" alt="TermLook icon">
-</p>
-
+<p align="center"><img src="assets/io.termlook.TermLook.svg" width="88" alt="TermLook icon"></p>
 <h1 align="center">TermLook</h1>
-<p align="center"><strong>A little room for every project.</strong><br>Workspaces, split panes, and your own shell — in a minimal Linux terminal.</p>
+<p align="center"><strong>A little room for every project.</strong><br>Native Linux terminal with workspaces, split panes, and your own shell.</p>
 
-<p align="center">
-  <a href="https://github.com/T0ks1k24/TermLook/actions/workflows/ci.yml"><img src="https://github.com/T0ks1k24/TermLook/actions/workflows/ci.yml/badge.svg?branch=main" alt="Build and tests"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-99b8b2" alt="MIT license"></a>
-  <img src="https://img.shields.io/badge/platform-Linux-8eb9ee" alt="Linux">
-  <img src="https://img.shields.io/badge/version-0.1.1-c4a0ed" alt="Version 0.1.1">
-</p>
+![TermLook workspace interface](docs/images/termlook.png)
 
-<p align="center"><a href="#run-on-ubuntu">Get started</a> · <a href="#controls">Shortcuts</a> · <a href="CONTRIBUTING.md">Contribute</a> · <a href="https://github.com/T0ks1k24/TermLook/issues">Report an issue</a></p>
+TermLook **0.4.2** is written in Rust, using GTK 3 for the desktop interface and
+VTE for terminal emulation. Python is no longer required. The application runs
+shells directly on the host and keeps opened sessions alive across workspace and
+tab switches. The screenshot above shows the earlier Python interface; the Rust
+version retains its workspace/sidebar layout.
 
-![TermLook with two terminal panes and workspace navigation](docs/images/termlook.png)
+## Build and run (Ubuntu 24.04)
 
-| Your workspace | Your workflow |
-| --- | --- |
-| **Workspaces & tabs** | Group shells by project and switch between them. |
-| **Up to four panes** | Split horizontally or vertically, resize, and rearrange. |
-| **Lazy restoration** | Saved tabs start a shell only when you first open them. |
-| **Your shell** | Keep using bash, zsh, or another installed shell. |
-| **Appearance & tray** | Adjust fonts and colors; keep sessions running in the background. |
+Install Rust **1.85 or newer**, then the native development libraries:
 
-A minimal dark terminal for Ubuntu, built with Python, GTK 3, and VTE. Workspaces appear on the left, with the selected workspace's terminal tabs across the top. Each tab runs its own shell.
+```sh
+sudo apt update
+sudo apt install build-essential pkg-config libgtk-3-dev libvte-2.91-dev librsvg2-common
+cargo run --release --locked
+```
 
-In **0.1.1**, restored tabs start their terminals only when first selected. Unopened
-tabs retain their names, directories, and split layouts without allocating terminal
-widgets or starting shells. Once opened, sessions stay alive across tab and workspace
-switches, including background commands and shell variables. Close a tab or pane to
-end its session; idle sessions are not terminated automatically.
+After building, launch `./target/release/termlook` directly. Cargo is only needed
+to build; the installed application uses the system GTK/VTE libraries.
 
-## Install on Ubuntu 24.04
-
-Download the `termlook-deb` artifact from a successful [build](https://github.com/T0ks1k24/TermLook/actions/workflows/ci.yml), unzip it, and install:
-
-```bash
-sudo apt install ./termlook_0.1.1_all.deb
+```sh
+./scripts/build_deb.sh
+sudo apt install ./dist/termlook_0.4.2_amd64.deb
 termlook
 ```
 
-APT installs the GTK/VTE dependencies. The package adds an application-menu entry
-and uses your host shell directly. Install a newer `.deb` with the same command to
-upgrade. Remove it with `sudo apt remove termlook`; your settings remain in
-`~/.config/termlook`. These downloads do not configure an automatic-update repository.
+The package architecture follows the build host. For a user-local installation
+instead, run `./scripts/install_desktop.sh`; it installs the executable in
+`~/.local/bin` and adds an application-menu entry. Quit an older running TermLook
+before launching the new version: both share the same application ID.
 
-Build locally with `/usr/bin/python3 scripts/build_deb.py`; the file appears in `dist/`.
-The package contains Python sources and is marked `Architecture: all`; automated
-installation tests currently run on Ubuntu 24.04 amd64.
+## Workspaces, tabs and panes
 
-If you previously installed the checkout launcher with `scripts/install_desktop.py`,
-remove `~/.local/share/applications/io.termlook.TermLook.desktop` so it no longer
-shadows the package's system launcher. Quit any running TermLook instance before
-starting the installed package; all editions share the same application ID.
+- Create a workspace with the `+` beside **spaces**. Create a tab with the top-bar `+`.
+- Double-click a workspace or tab name to rename it. F2 renames the active tab.
+- Split left/right or top/bottom, nesting up to **four panes** per tab.
+- Drag dividers to resize. Drag a pane header onto another pane to swap positions.
+- Use **Four panes** for a 2×2 layout, or **Focus pane** to temporarily hide others.
+- Closing a pane, tab or workspace asks for confirmation before ending sessions. Cancel is the default; quitting the application also asks.
+- Closing the final tab creates a new `main` tab; deleting the final workspace creates `work`.
+- Tab close buttons are visible by default; accidental clicks open a confirmation dialog.
 
-## Run on Ubuntu
+Restored tabs allocate no terminal widgets or shells until selected. Opened tabs
+keep their PTYs, output, commands and shell variables. Restarting restores names,
+directories and split geometry, but starts fresh shells; it does not restore
+processes or scrollback. The shell can report working-directory changes using
+OSC 7; otherwise TermLook retains the initial directory.
 
-```bash
-sudo apt update
-sudo apt install python3 python3-gi librsvg2-common gir1.2-gtk-3.0 gir1.2-vte-2.91
-cd /path/to/TermLook
-/usr/bin/python3 -m termlook
+## Settings and customization
+
+Open **⚙ Settings** or press **Ctrl+,**. **Apply** validates and saves changes.
+Appearance changes affect existing terminals without restarting their shells.
+Save and close or the window close button saves before closing. Validation or disk errors keep the editor open. Discard changes explicitly discards edits made since the last save.
+
+- **Appearance:** font, foreground/background colors, 16-color ANSI palette,
+  cursor shape/blinking, terminal padding and sidebar width. Choose a background photo with cover/contain/stretch fitting and 0–100% dimming. Charcoal, Midnight
+  and Light buttons provide starting colors.
+- **Terminal:** shell executable, scrollback, bell and automatic scrolling.
+- **Behavior:** close-to-tray/minimize and tab close buttons.
+- **Shortcuts:** edit every application action; duplicate or invalid shortcuts
+  are rejected. Empty shortcuts disable an action.
+- **Profiles:** named shell/directory configurations and a default profile.
+  Profiles have a form for their name, folder and shell. Choose a folder and press Save project, Apply, or Save and close; no separate add step is needed. An empty name defaults to the folder name. Saved profiles appear in a visible list above the form; select a row to edit it. New project starts another profile. The ANSI palette remains editable as JSON.
+
+Preferences are stored in `~/.config/termlook/settings.json`, respecting
+`XDG_CONFIG_HOME`. Existing 0.1.x settings and `layout.json` remain readable;
+new fields receive defaults. Back up these two files before switching between
+versions if you want to preserve a particular layout.
+
+A partial settings file is sufficient. For example:
+
+```json
+{
+  "font": "Monospace 12",
+  "background": "#11111b",
+  "foreground": "#cdd6f4",
+  "show_tab_close_buttons": true,
+  "keybindings": { "new-tab": "<Primary><Shift>t", "grid": "<Primary><Shift>g" },
+  "profiles": { "project": { "shell": "/bin/zsh", "cwd": "/home/you/project" } },
+  "default_profile": "project"
+}
 ```
 
-Use the system Python: GTK and VTE are installed through apt, not pip.
+Use **Projects…** in the sidebar or **Ctrl+Shift+P** for quick opening. Each saved project has **Редагувати** (edit) and **Видалити** (delete) buttons. Confirmed deletion is saved immediately and removes only the profile, preserving files and running terminals. A profile
+opens its own workspace with the configured folder and shell. Opening it again
+selects the existing workspace. Its profile association survives restarts; new
+panes use that project's shell, while existing processes keep running. Removing
+a profile does not delete a workspace or its files; it falls back to global shell
+settings for future sessions.
 
-## Application icon and launcher
+The **F1 → Проєкти** help page includes a Ukrainian guide to creation, saving, startup tasks, logs and troubleshooting.
 
-```bash
-/usr/bin/python3 scripts/install_desktop.py
+**Project task templates:** in Settings → Profiles, enter one task per line:
+
+```text
+Server | npm run dev
+Tests | npm test
+Logs | tail -f app.log
 ```
 
-Open **TermLook** from the application menu and optionally pin it to your dock. The launcher and icon are installed for the current user without sudo. The launcher points to this checkout; run the installer again if you move the project. The window also uses the bundled SVG icon when launched through Python.
+Use commands appropriate to your project. Each task runs concurrently in its own
+terminal tab, in the profile folder, through the profile shell with `-c`. Both
+stdout and stderr stream directly to the terminal. Keep servers in the foreground
+(no trailing `&`) so completion status follows the actual process. Shell startup
+files for interactive sessions may not load; configure needed environment variables
+in the command or invoke a project script.
 
-## Settings and background mode
+Enable **Run tasks automatically when I open this project**, then press Save project or Apply. **Projects → Open project** runs its template once per workspace in the
+current application session. Opening it again selects it without rerunning commands.
+**Open + run tasks** explicitly reruns a finished template in fresh tabs, preserving
+old logs; it refuses while any template task is still running. Stop tasks with
+Ctrl+C or close their tabs with confirmation. Each template supports up to 12 tasks.
 
-Click `⚙` or press `Ctrl+,` to open Settings. Use the Appearance, Terminal, and Behavior sections; each option includes a short explanation. You can configure:
+Task tabs show running, success, exit code, or termination signal. Desktop notifications
+can report all completions, errors only (default), or be disabled. Notifications depend
+on your desktop notification service. Errors printed by a still-running program remain
+in its log; TermLook determines failure from process exit status, not text matching.
+Log scrollback follows the terminal settings and remains until the tab/application
+closes; it is not archived to disk. Restoring the application layout does not rerun
+commands: open the profile from Projects to launch its template again. Editing a
+template applies to the next run and leaves current processes untouched.
 
-- Font, text and background colors, cursor shape, and blinking.
-- Terminal padding, sidebar width, and scrollback length.
-- Audible bell and automatic scrolling.
-- Shell executable path, applied to new tabs.
-- Whether closing the window hides it in the tray.
+The default profile directory applies to new tabs. Restored panes keep their
+saved directories; splits inherit the focused pane's directory. Shell settings
+apply when a session starts. An unavailable shell falls back to `$SHELL`, the
+login shell, `/bin/bash`, then `/bin/sh`. A missing directory falls back to home.
 
-**Apply** saves preferences to `~/.config/termlook/settings.json`, respecting `XDG_CONFIG_HOME`. Appearance changes apply immediately without restarting sessions. **Cancel** keeps the previous settings.
+Print all defaults with `termlook --print-default-settings`. After editing the
+file externally, press **Ctrl+Shift+R** to validate and reload it. Invalid reloads
+leave the current settings active. Startup tolerates invalid fields and uses
+defaults for them.
 
-By default, the window's close button **hides the application** while commands keep running. The top-panel icon provides **Open TermLook / Settings / Quit**. Launching TermLook again also restores the main window. Choose **Quit** or press `Ctrl+Shift+Q` to exit completely. Tab close buttons still end their individual sessions.
+To use a photo, open **Settings → Appearance → Choose image…**, adjust dimming
+and fitting, and Apply. PNG, JPEG, WebP and other formats supported by the system
+image loader are accepted. The file must remain available at its selected path.
+The image is shared behind all panes, decoded at a maximum of 3840×2160; input
+files are limited to 64 MiB and 100 megapixels. An unreadable image is rejected on
+Apply, and startup falls back to a solid color if the file has disappeared.
 
-For the tray indicator on Ubuntu:
+For GTK interface styling, create `~/.config/termlook/theme.css` and reload:
 
-```bash
-sudo apt install gir1.2-ayatanaappindicator3-0.1 gnome-shell-extension-appindicator
+```css
+#sidebar { background: #11111b; }
+.terminal-tab.active { background: #45475a; }
+.terminal-pane.focused { border-color: #89b4fa; }
 ```
 
-Enable the Ubuntu AppIndicators extension in GNOME. The tab bar doubles as the title bar: drag its empty space, or the area beside “spaces”, to move the window, double-click it to maximize, and right-click it for the window menu. `×` at its right end, next to `+`, hides TermLook in the tray. If a tray host is unavailable, `×` minimizes the window so it remains accessible from the taskbar. If the tray host disappears while TermLook is hidden, the window reappears.
+Terminal text/background and ANSI colors come from settings. Invalid custom CSS
+is reported and the built-in stylesheet remains available.
 
-## Split terminals
+## Background mode
 
-Each tab supports **1–4 terminal panes** with independent shell sessions.
+Closing the window hides it when an AppIndicator host is available, otherwise
+it minimizes so running sessions stay accessible. Launching TermLook again
+restores its existing window. **Ctrl+Shift+Q** or tray **Quit** ends the application.
+Disable background mode in Settings to ask before quitting on window close.
 
-- `◫` or `Ctrl+Shift+E`: split the focused pane left/right (maximum four).
-- `⬒` or `Ctrl+Shift+D`: split the focused pane top/bottom.
-- Drag a divider to resize panes. Drag the `⠿ Pane` handle onto another pane header to swap terminals. A live thumbnail follows the pointer, the source fades, and valid targets highlight with “Release to swap”.
-- `⊞`: create a four-pane 2×2 grid.
-- Click a terminal to focus it; the active pane has a subtle border.
-- `□` or `Ctrl+Shift+Return`: show only the focused pane; toggle again to restore the grid. Hidden panes keep running.
-- `×` in a pane header or `Ctrl+Shift+X`: close that pane. Closing the last pane closes the tab.
+On Ubuntu, optional tray support uses:
 
-Splits can be nested in either direction. For one terminal above two others, split top/bottom, focus the bottom terminal, then split left/right. Reverse the process or focus a different pane for other arrangements. Layouts, divider proportions, pane order, and directories are saved. Restarting creates fresh shells, just like regular tabs.
+```sh
+sudo apt install libayatana-appindicator3-1 gnome-shell-extension-appindicator
+```
 
-## Controls
+Enable the desktop's AppIndicator extension. The tray menu includes Open,
+Settings and Quit. If the tray host disappears while TermLook is hidden, its
+window reappears. Desktop-specific tray integration should also be checked on
+your actual X11/Wayland session.
+
+## Default shortcuts
 
 | Action | Shortcut |
 | --- | --- |
-| Split left / right | Ctrl+Shift+E |
-| Split top / bottom | Ctrl+Shift+D |
-| Close pane | Ctrl+Shift+X |
-| Focus pane / show all | Ctrl+Shift+Return |
-| New tab | Ctrl+Shift+T |
-| New workspace | Ctrl+Shift+N |
-| Close tab | Ctrl+Shift+W |
+| Open project | Ctrl+Shift+P |
+| New tab / workspace | Ctrl+Shift+T / Ctrl+Shift+N |
+| Close tab / pane | Ctrl+Shift+W / Ctrl+Shift+X |
+| Split left/right / top/bottom | Ctrl+Shift+E / Ctrl+Shift+D |
+| Focus pane / show all | Ctrl+Shift+Enter |
 | Next / previous tab | Ctrl+Tab / Ctrl+Shift+Tab |
 | Copy / paste | Ctrl+Shift+C / Ctrl+Shift+V |
 | Rename tab | F2 |
-| Help | F1 |
-| Settings | Ctrl+, |
+| Help (guide and searchable shortcuts) | F1 |
+| Settings / reload settings | Ctrl+, / Ctrl+Shift+R |
 | Quit | Ctrl+Shift+Q |
 
-Select a workspace on the left to show its terminal tabs at the top. The `+` beside spaces creates a workspace; the `+` in the top bar creates a terminal. Each workspace remembers its selected tab during the application session. Ctrl+Tab cycles through the current workspace's tabs.
+Press **F1** or click **? Help** in the sidebar for the built-in help window. It
+has three tabs: **Quick start** (workspaces, tabs, panes and background mode),
+**Shortcuts** (searchable, grouped, and always showing your current bindings) and
+**Customize** (config file locations, `theme.css` and a button that opens Settings).
+Toolbar tooltips also show each action's current shortcut.
 
-Double-click a workspace or tab name to rename it; F2 renames the active terminal. `×` deletes a workspace or closes a tab **without confirmation**, ending its sessions. Closing the last tab creates a fresh `main` tab; deleting the last workspace creates `work`.
+Right-click inside a terminal for Copy/Paste. Ctrl+C still interrupts the shell's
+current command. The title/tab bar supports desktop window dragging.
 
-At the bottom, `⌘` opens **Keybinds** and `?` opens **Help**. Keybinds groups shortcuts by task and includes a search field for actions or keys. Help provides short guides to workspaces, split panes, dragging, and background mode. Escape closes the help window. Right-click in the terminal for copy and paste. Ctrl+C interrupts the current command. Hover over a tab to see its working directory.
-
-The layout is saved to `~/.config/termlook/layout.json` (or `$XDG_CONFIG_HOME/termlook/layout.json`). Restarting opens fresh shell sessions; output and processes are not restored. The working directory updates when the shell sends OSC 7; otherwise the initial directory is retained.
-
-## Verification
-
-```bash
-/usr/bin/python3 -m unittest discover -s tests
-# For GUI testing without a display: sudo apt install xvfb
-G_DEBUG=fatal-criticals xvfb-run -a /usr/bin/python3 tests/smoke_gui.py
-G_DEBUG=fatal-criticals dbus-run-session -- xvfb-run -a /usr/bin/python3 tests/smoke_lazy.py
-```
-
-## Architecture
+## Implementation and verification
 
 ```text
-termlook/
-  app.py                 # Application setup and dependency wiring
-  __main__.py            # python -m termlook
-  core/
-    models.py            # Tab, Workspace, Layout; no GTK dependencies
-    splits.py            # Split tree operations and layout validation
-    settings.py          # Typed and validated preferences
-    controller.py        # User actions and model/view coordination
-  services/
-    storage.py           # JSON loading and atomic saving
-    preferences.py       # Settings persistence
-    tray.py              # AppIndicator and panel availability
-    terminal.py          # VTE sessions: shell environment, startup, cancellation, disposal
-  ui/
-    window.py            # Window composition and widget lifecycle
-    navigation.py        # Workspace sidebar and terminal tab widgets
-    panes.py             # Terminal pane grid and focus mode
-    shortcuts.py         # Keyboard bindings
-    guide.py             # Help window
-    settings.py          # Settings dialog
-    dialogs.py           # Naming dialogs
-    widgets.py           # Shared UI components
-    theme.py             # CSS
-    gtk.py               # GTK/VTE imports
-  assets/
-    io.termlook.TermLook.svg
-scripts/
-  run.py                 # Launch from any working directory
-  install_desktop.py     # Install application icon and menu entry
-  build_deb.py           # Build the native Debian package
-tests/                  # Model, persistence, and GTK/VTE tests
+src/model.rs        Workspace/tab/pane model and compatible split-tree serialization
+src/settings.rs     Validated settings, palettes, profiles and shortcut defaults
+src/storage.rs      Size-bounded JSON reads and atomic, private file replacement
+src/terminal.rs     GTK 3 VTE adapter, asynchronous spawn and cancellation
+src/tray.rs         Optional dynamically loaded AppIndicator integration
+src/ui.rs           Window, navigation, pane layout and application actions
+src/help.rs         Help window: quick start, searchable shortcuts, customization
+src/preferences.rs  Live settings editor
+src/background.rs   Shared image background and fitting
+src/closing.rs      Confirmation before ending sessions
+src/projects.rs     Profile editor and project workspace launcher
+src/main.rs         Single-instance application and GTK/VTE lifecycle regression
+assets/             Embedded icon and default GTK stylesheet
+scripts/            Native Debian build, local install and release scripts
 ```
 
-`core` does not import GTK. The controller receives a save function and a view; `app.py` wires them together. Models contain data and stable IDs rather than widget references. The window owns the terminal sessions, and each session manages its signals and asynchronous startup. There are no mixin classes.
+Rust's release profile enables thin LTO, one codegen unit and stripped symbols.
+Lazy terminals, cached pane/navigation widgets and coalesced layout writes avoid
+unnecessary work. This is not a claim of a measured speedup over Python: VTE was
+already native in the old implementation.
 
-Add actions to `core/controller.py`, their buttons to `ui/`, and external integrations to `services/`. UI actions run through `Window.dispatch()`, so widget changes happen after the current GTK event finishes. Closing a session disconnects its signals and cancels startup; its widget is retained until the startup callback completes.
+```sh
+cargo fmt --check
+cargo clippy --locked --all-targets -- -D warnings
+cargo test --locked
+sudo apt install xvfb xauth dbus-x11
+GDK_BACKEND=x11 G_DEBUG=fatal-criticals GSETTINGS_BACKEND=memory GIO_USE_VFS=local NO_AT_BRIDGE=1 \
+  dbus-run-session -- xvfb-run -a cargo test --locked --bin termlook gui_lifecycle -- --ignored --test-threads=1
+```
 
-## Packaging and Windows
+See [Contributing](CONTRIBUTING.md) and [Packaging](docs/packaging.md).
+Native Windows is not supported; Linux builds can run under WSLg.
 
-See [Packaging and Windows support](docs/packaging.md) for Debian package builds, WSLg setup, and the work required for a native Windows port.
-
-## Contributing
-
-See [Contributing](CONTRIBUTING.md) for development setup, checks, and pull requests.
-Project authors are listed in [Contributors](CONTRIBUTORS.md).
-
-## License
-
-TermLook is licensed under the [MIT License](LICENSE).
+Licensed under the [MIT License](LICENSE). Authors: [Contributors](CONTRIBUTORS.md).

@@ -8,4 +8,4 @@ Icon=io.termlook.TermLook
 Terminal=false
 Categories=System;TerminalEmulator;
 StartupNotify=true
-StartupWMClass=termlook
+StartupWMClass=io.termlook.TermLook

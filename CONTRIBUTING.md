@@ -1,59 +1,34 @@
 # Contributing to TermLook
 
-Bug reports, fixes, documentation, and improvements are welcome. For larger changes,
-open an issue first to discuss the problem and proposed approach.
+Install Rust 1.85+ and Ubuntu's `build-essential`, `pkg-config`, `libgtk-3-dev`
+and `libvte-2.91-dev`. Run `cargo run --release --locked` from the checkout.
 
-## Development setup
+Keep changes focused. The model, settings and storage modules contain no GTK
+objects. UI widgets and shell processes belong to their respective adapters.
+Keep FFI in `terminal.rs` / `tray.rs`, document pointer ownership, and test spawn
+cancellation whenever terminal lifetime changes. UI event handlers defer model
+mutations to the GTK main loop; callbacks hold weak references to application state.
 
-Fork the repository, clone your fork, and create a branch for your change.
-On Ubuntu, install the runtime and test dependencies:
+Before submitting:
 
-```bash
-sudo apt update
-sudo apt install python3 python3-gi librsvg2-common gir1.2-gtk-3.0 gir1.2-vte-2.91 gir1.2-ayatanaappindicator3-0.1 xvfb xauth dbus-x11
-/usr/bin/python3 -m termlook
+```sh
+cargo fmt --check
+cargo clippy --locked --all-targets -- -D warnings
+cargo test --locked
+GDK_BACKEND=x11 G_DEBUG=fatal-criticals GSETTINGS_BACKEND=memory GIO_USE_VFS=local NO_AT_BRIDGE=1 \
+  timeout 90s dbus-run-session -- xvfb-run -a cargo test --locked --bin termlook gui_lifecycle -- --ignored --test-threads=1
+./scripts/build_deb.sh
 ```
 
-Use system Python so it can load the GTK and VTE packages installed through apt.
-See the [README](README.md) for application behavior and the code structure, and
-[packaging documentation](docs/packaging.md) for local Debian package builds.
+The GUI regression requires `xvfb`, `xauth` and `dbus-x11`. It checks lazy
+restoration, persistent shell variables, splits, zoom, swaps, live preferences,
+OSC 7 directories, PTY cleanup and cancellation during rapid close operations.
+Also test affected interactions on a real desktop, including X11/Wayland and
+tray behavior where relevant. Commit `Cargo.lock`; do not commit `target/` or
+built packages. Keep `VERSION` and the package version in `Cargo.toml` in sync.
 
-## Making changes
+Target `main` in pull requests. Explain the resulting behavior, relevant tests,
+and limitations. Report your distribution, desktop, display server, version and
+shell for desktop issues. Remove private terminal output and credentials from logs.
 
-- Keep each pull request focused on one change and follow the surrounding style.
-- Keep `termlook/core` independent of GTK. Put shell and system integrations in
-  `termlook/services`, and UI changes in `termlook/ui`.
-- Add or update regression tests for changed behavior and bug fixes.
-- Update user documentation when controls or behavior change.
-- Do not commit generated packages, Python caches, or credentials.
-
-## Checking your changes
-
-Run these commands from the repository root:
-
-```bash
-/usr/bin/python3 -m unittest discover -s tests -v
-/usr/bin/python3 -m compileall -q termlook scripts tests
-sh -n packaging/debian/termlook
-G_DEBUG=fatal-criticals GSETTINGS_BACKEND=memory NO_AT_BRIDGE=1 \
-  timeout 90s dbus-run-session -- xvfb-run -a /usr/bin/python3 tests/smoke_gui.py
-G_DEBUG=fatal-criticals GSETTINGS_BACKEND=memory NO_AT_BRIDGE=1 \
-  timeout 90s dbus-run-session -- xvfb-run -a /usr/bin/python3 tests/smoke_lazy.py
-```
-
-For UI or terminal changes, also test the affected behavior in a real desktop
-session. Include your Ubuntu version and whether you used X11 or Wayland when
-reporting desktop-specific behavior.
-
-## Submitting a pull request
-
-Target `main`. Explain the problem, what changed, and how you tested it. Link any
-related issue and include screenshots when they help explain a visible change.
-Use descriptive commit messages. The maintainer, @T0ks1k24, reviews contributions
-and decides whether to merge them.
-
-For bug reports, include steps to reproduce, expected and actual behavior, and
-whether you ran from source or a Debian package. Remove private terminal output and paths
-from logs before sharing them.
-
-Contributions are made under the project's [MIT license](LICENSE).
+Contributions are made under the [MIT license](LICENSE).
