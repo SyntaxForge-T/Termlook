@@ -9,7 +9,7 @@ repository = "https://github.com/SyntaxForge-T/Termlook"
 
 [dependencies]
 gtk = "0.18"
-glib = "0.18"
+glib = "0.22"
 gio = "0.18"
 gdk = "0.18"
 pango = "0.18"
