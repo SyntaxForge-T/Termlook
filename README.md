@@ -90,7 +90,7 @@ Saved profiles appear in a visible list above the settings form. Select a row
 to edit it; use **New project** to create another. Invalid entries keep the
 settings window open and show an error. **Discard changes** cancels unsaved edits.
 
-In **Projects…**, every profile has **Редагувати** (Edit) and **Видалити** (Delete)
+In **Projects…**, every profile has **Edit** and **Delete**
 buttons. Confirmed deletion is saved immediately. It removes the profile, while
 its folder, files, and running terminals remain. Save or discard an open settings
 draft before deleting from the project manager.
@@ -176,7 +176,7 @@ leave the active settings unchanged.
 | Quit | Ctrl+Shift+Q |
 
 **F1** opens quick-start guidance, searchable shortcuts, customization help, and
-**Проєкти**, a Ukrainian guide to project creation, tasks, logs, and deletion.
+**Projects**, a guide to project creation, tasks, logs, and deletion.
 Tooltips reflect your configured shortcuts. Right-click a terminal for Copy/Paste;
 **Ctrl+C** retains its normal role of interrupting the foreground command.
 

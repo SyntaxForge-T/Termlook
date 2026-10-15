@@ -115,13 +115,13 @@ impl Editor {
         default: &gtk::Entry,
     ) -> Self {
         let widget = gtk::Box::new(gtk::Orientation::Vertical, 10);
-        let heading = gtk::Label::new(Some("Збережені проєкти — натисніть рядок для редагування"));
+        let heading = gtk::Label::new(Some("Saved projects — select a row to edit"));
         heading.set_xalign(0.0);
         heading.set_line_wrap(true);
         widget.pack_start(&heading, false, false, 0);
         let selected = ProfileList::new();
         let empty = gtk::Label::new(Some(
-            "Проєктів ще немає. Виберіть папку нижче та натисніть Save project.",
+            "No saved projects yet. Choose a folder below and click Save project.",
         ));
         empty.set_line_wrap(true);
         selected.0.set_placeholder(Some(&empty));
@@ -182,7 +182,7 @@ impl Editor {
         });
         let save = gtk::Button::with_label("Save project");
         let new = gtk::Button::with_label("New project");
-        let delete = gtk::Button::with_label("Видалити вибраний проєкт");
+        let delete = gtk::Button::with_label("Delete selected project");
         delete.set_sensitive(false);
         delete.set_widget_name("project-remove");
         for button in [&save, &new, &delete] {
@@ -504,9 +504,9 @@ impl State {
             let contents = gtk::Box::new(gtk::Orientation::Horizontal, 12);
             label.set_ellipsize(pango::EllipsizeMode::Middle);
             contents.pack_start(&label, true, true, 0);
-            let edit = gtk::Button::with_label("Редагувати");
+            let edit = gtk::Button::with_label("Edit");
             edit.set_widget_name(&format!("edit-project-{name}"));
-            let delete = gtk::Button::with_label("Видалити");
+            let delete = gtk::Button::with_label("Delete");
             delete.set_widget_name(&format!("delete-project-{name}"));
             edit.set_valign(gtk::Align::Center);
             delete.set_valign(gtk::Align::Center);
@@ -532,9 +532,9 @@ impl State {
             // An open settings draft must be saved/discarded before editing the on-disk list.
             delete.set_sensitive(self.preferences.is_none());
             delete.set_tooltip_text(Some(if self.preferences.is_some() {
-                "Спочатку збережіть або закрийте налаштування."
+                "Save or close Settings first."
             } else {
-                "Видалити лише профіль. Файли та запущені термінали залишаться."
+                "Delete only the profile. Files and running terminals are kept."
             }));
             let weak = self.weak.clone();
             let key = name.clone();
@@ -548,15 +548,15 @@ impl State {
                     gtk::DialogFlags::MODAL | gtk::DialogFlags::DESTROY_WITH_PARENT,
                     gtk::MessageType::Question,
                     gtk::ButtonsType::None,
-                    &format!("Видалити проєкт «{key}» зі збережених?"),
+                    &format!("Delete saved project “{key}”?"),
                 );
                 confirm.set_widget_name("project-delete-confirmation");
                 confirm.set_secondary_text(Some(
-                    "Видаляється лише профіль. Папка, файли та запущені термінали залишаться.",
+                    "Only the profile will be deleted. Its folder, files, and running terminals are kept.",
                 ));
                 confirm.add_buttons(&[
-                    ("Скасувати", gtk::ResponseType::Cancel),
-                    ("Видалити", gtk::ResponseType::Accept),
+                    ("Cancel", gtk::ResponseType::Cancel),
+                    ("Delete", gtk::ResponseType::Accept),
                 ]);
                 confirm.set_default_response(gtk::ResponseType::Cancel);
                 let weak = weak.clone();
