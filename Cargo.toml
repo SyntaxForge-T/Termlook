@@ -5,7 +5,7 @@ edition = "2021"
 rust-version = "1.85"
 description = "A native terminal with workspaces, split panes and live customization"
 license = "MIT"
-repository = "https://github.com/T0ks1k24/TermLook"
+repository = "https://github.com/SyntaxForge-T/Termlook"
 
 [dependencies]
 gtk = "0.18"
