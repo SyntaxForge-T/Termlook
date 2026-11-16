@@ -4,52 +4,119 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
   workflow_call:
 
 permissions:
   contents: read
 
+# A new push to a pull request cancels its previous run. Runs on main are never
+# cancelled, because each one may publish a release.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: '0'
+  RUST_BACKTRACE: '1'
 
 jobs:
-  tests:
-    name: Rust tests and native package
+  lint:
+    name: Lint
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Install native build and test dependencies
+      - uses: ./.github/actions/setup-native
+        with:
+          components: rustfmt,clippy
+      - name: Check formatting
+        run: cargo fmt --check
+      - name: Clippy
+        run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Check shell script syntax
+        run: for script in scripts/*.sh tests/*.sh; do sh -n "$script"; done
+      - name: Check manifest and version sync
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential pkg-config libgtk-3-dev libvte-2.91-dev libayatana-appindicator3-1 librsvg2-common xvfb xauth xdotool dbus-x11 desktop-file-utils
-          rustup toolchain install stable --profile minimal --component rustfmt,clippy
-          rustup default stable
-      - name: Format, lint and unit tests
-        run: |
-          cargo fmt --check
-          cargo clippy --locked --all-targets -- -D warnings
-          cargo test --locked
-          for script in scripts/*.sh tests/*.sh; do sh -n "$script"; done
+          version=$(cat VERSION)
+          manifest=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n 1)
+          [ "$version" = "$manifest" ] || { echo "VERSION ($version) and Cargo.toml ($manifest) differ" >&2; exit 1; }
+
+  test:
+    name: Test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-native
+      - name: Unit and integration tests
+        run: cargo test --locked
+
+  msrv:
+    name: MSRV
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Read the declared minimum Rust version
+        id: msrv
+        run: echo "version=$(sed -n 's/^rust-version = "\([^"]*\)"/\1/p' Cargo.toml)" >> "$GITHUB_OUTPUT"
+      - uses: ./.github/actions/setup-native
+        with:
+          toolchain: ${{ steps.msrv.outputs.version }}
+      - name: Check with the minimum supported Rust
+        run: cargo check --locked --all-targets
+
+  gui:
+    name: GUI lifecycle
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GDK_BACKEND: x11
+      G_DEBUG: fatal-criticals
+      GSETTINGS_BACKEND: memory
+      GIO_USE_VFS: local
+      NO_AT_BRIDGE: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-native
+        with:
+          extra-packages: xvfb xauth xdotool dbus-x11
+      # Compile first so the timeout below only covers the test run itself.
+      - name: Build GUI regression test
+        run: cargo test --locked --bin termlook --no-run
       - name: GTK and VTE lifecycle regression
-        env:
-          GDK_BACKEND: x11
-          G_DEBUG: fatal-criticals
-          GSETTINGS_BACKEND: memory
-          GIO_USE_VFS: local
-          NO_AT_BRIDGE: '1'
         run: timeout 90s dbus-run-session -- xvfb-run -a cargo test --locked --bin termlook gui_lifecycle -- --ignored --test-threads=1
+
+  package:
+    name: Debian package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GDK_BACKEND: x11
+      G_DEBUG: fatal-criticals
+      GSETTINGS_BACKEND: memory
+      GIO_USE_VFS: local
+      NO_AT_BRIDGE: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-native
+        with:
+          extra-packages: xvfb xauth xdotool dbus-x11 desktop-file-utils
       - name: Build Debian package
         run: ./scripts/build_deb.sh
       - name: Install and validate package
-        env:
-          GDK_BACKEND: x11
-          G_DEBUG: fatal-criticals
-          GSETTINGS_BACKEND: memory
-          GIO_USE_VFS: local
-          NO_AT_BRIDGE: '1'
         run: |
           sudo apt-get install -y ./dist/termlook_*_amd64.deb
           desktop-file-validate /usr/share/applications/io.termlook.TermLook.desktop
@@ -62,9 +129,24 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  # One stable check for branch protection: it passes only when every job above passed.
+  ci-ok:
+    name: CI gate
+    if: always()
+    needs: [lint, test, msrv, gui, package]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every job to succeed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          printf '%s' "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          printf '%s' "$NEEDS" | jq -e 'all(.[]; .result == "success")' > /dev/null
+
   release:
     name: Publish release
-    needs: tests
+    needs: [ci-ok, package]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 5

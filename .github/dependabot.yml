@@ -1,10 +1,43 @@
 version: 2
 updates:
   - package-ecosystem: github-actions
-    directory: /
+    directories:
+      - /
+      - /.github/actions/setup-native
     schedule:
       interval: weekly
+    commit-message:
+      prefix: "ci"
+    labels: [dependencies, ci]
+    groups:
+      github-actions:
+        patterns: ["*"]
+
   - package-ecosystem: cargo
     directory: /
     schedule:
       interval: weekly
+    commit-message:
+      prefix: "build(deps)"
+    labels: [dependencies, rust]
+    open-pull-requests-limit: 5
+    # gtk 0.18 is the last GTK 3 release of gtk-rs and depends on glib, gio, gdk
+    # and pango 0.18. Newer releases target GTK 4 and cannot be mixed with it, so
+    # only accept patch updates for the whole family.
+    ignore:
+      - dependency-name: gtk
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: gdk
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: glib
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: gio
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: pango
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+    groups:
+      gtk-rs:
+        patterns: ["gtk", "gdk", "glib", "gio", "pango"]
+      rust-minor-and-patch:
+        update-types: ["minor", "patch"]
+        exclude-patterns: ["gtk", "gdk", "glib", "gio", "pango"]
