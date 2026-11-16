@@ -8,7 +8,7 @@ updates:
       interval: weekly
     commit-message:
       prefix: "ci"
-    labels: [dependencies, ci]
+    labels: [dependencies, github_actions]
     groups:
       github-actions:
         patterns: ["*"]
