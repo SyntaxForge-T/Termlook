@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TermLook user guide – projects, tasks and customization</title>
+  <meta name="description" content="How to use TermLook: saved projects, startup tasks and logs, appearance settings, configuration files, keyboard shortcuts and session behavior.">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#14151b" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f7f8fa" media="(prefers-color-scheme: light)">
+  <link rel="canonical" href="https://syntaxforge-t.github.io/Termlook/guide.html">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="TermLook">
+  <meta property="og:title" content="TermLook user guide">
+  <meta property="og:description" content="Projects, startup tasks, customization, configuration files and keyboard shortcuts.">
+  <meta property="og:url" content="https://syntaxforge-t.github.io/Termlook/guide.html">
+  <meta property="og:image" content="https://syntaxforge-t.github.io/Termlook/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="stylesheet" href="style.css">
+  <script defer src="script.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <a class="brand" href="./"><img src="favicon.svg" alt="" width="30" height="30">TermLook</a>
+      <nav class="nav" aria-label="Main">
+        <a class="nav-secondary" href="./#features">Features</a>
+        <a href="./#install">Install</a>
+        <a href="guide.html" aria-current="page">Guide</a>
+        <a class="nav-cta" href="https://github.com/SyntaxForge-T/Termlook">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="container guide">
+    <aside class="toc" aria-label="On this page">
+      <h2>On this page</h2>
+      <ul>
+        <li><a href="#getting-started">Getting started</a></li>
+        <li><a href="#projects">Projects</a></li>
+        <li><a href="#tasks">Startup tasks and logs</a></li>
+        <li><a href="#customization">Customization</a></li>
+        <li><a href="#configuration">Configuration files</a></li>
+        <li><a href="#shortcuts">Keyboard shortcuts</a></li>
+        <li><a href="#sessions">Session behavior</a></li>
+        <li><a href="#background">Background mode</a></li>
+      </ul>
+    </aside>
+
+    <main id="main" class="prose">
+      <h1>TermLook user guide</h1>
+      <p class="lead">Everything you need to organize your projects in TermLook. For installation, see the <a href="./#install">install section</a>.</p>
+
+      <section id="getting-started">
+        <h2>Getting started</h2>
+        <p>TermLook opens a window with a workspace sidebar on the left and your terminals on the right. Each workspace holds tabs, and each tab holds up to four panes.</p>
+        <ul>
+          <li>Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> for a new tab and <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd> for a new workspace.</li>
+          <li>Split a pane left/right with <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> or top/bottom with <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd>.</li>
+          <li>Resize dividers by dragging them, and swap panes by dragging their headers.</li>
+          <li>Press <kbd>F1</kbd> for quick-start guidance, searchable shortcuts and customization help.</li>
+        </ul>
+        <p>Print the default settings with <code>termlook --print-default-settings</code>.</p>
+      </section>
+
+      <section id="projects">
+        <h2>Projects</h2>
+        <figure class="frame">
+          <img src="images/projects.png" alt="Saved projects with their folders, task counts, and edit and delete buttons" width="720" height="440" loading="lazy">
+        </figure>
+        <ol>
+          <li>Open <strong>Projects… → Manage profiles</strong>, or <strong>Settings → Profiles</strong>.</li>
+          <li>Choose a folder. Enter a project name, or leave it blank to use the folder name.</li>
+          <li>Optionally choose a shell executable such as <code>/bin/bash</code> or <code>/bin/zsh</code>.</li>
+          <li>Click <strong>Save project</strong>. <strong>Apply</strong>, <strong>Save and close</strong> and the settings window's close button also save the form.</li>
+          <li>Open <strong>Projects…</strong>, select the project and click <strong>Open project</strong>.</li>
+        </ol>
+        <p>Each profile opens its own workspace. Opening the same project again selects that workspace without creating a duplicate.</p>
+        <p>Saved profiles appear in a visible list above the settings form. Select a row to edit it, and use <strong>New project</strong> to create another. Invalid entries keep the settings window open and show an error. <strong>Discard changes</strong> cancels unsaved edits.</p>
+        <p>In <strong>Projects…</strong>, every profile has <strong>Edit</strong> and <strong>Delete</strong> buttons. Confirmed deletion is saved immediately. It removes the profile, while its folder, files and running terminals remain. Save or discard an open settings draft before deleting from the project manager.</p>
+      </section>
+
+      <section id="tasks">
+        <h2>Startup tasks and logs</h2>
+        <figure class="frame">
+          <img src="images/project-settings.png" alt="Project settings showing saved profiles and named startup commands" width="920" height="960" loading="lazy">
+        </figure>
+        <p>In <strong>Settings → Profiles</strong>, enter one task per line using <code>Name | command</code>:</p>
+        <div class="codeblock"><pre><code>Server | npm run dev
+Tests | npm test
+Logs | tail -f app.log</code></pre></div>
+        <p>These are examples; use commands that exist in your project. Leave the task field empty to open a normal terminal. Enable <strong>Run tasks automatically when I open this project</strong>, then save the profile.</p>
+        <ul>
+          <li>Each task runs in its own terminal tab, concurrently, from the project folder.</li>
+          <li>Standard output and error output appear directly in the terminal.</li>
+          <li>Tabs show <strong>▶</strong> while running, <strong>✓</strong> on success, or <strong>✗</strong> with an exit code or termination signal.</li>
+          <li>Choose notifications for <strong>errors only</strong>, <strong>every completion</strong>, or <strong>off</strong>.</li>
+          <li><strong>Open project</strong> launches the template once per workspace during the current app session.</li>
+          <li><strong>Open + run tasks</strong> reruns a finished template in fresh tabs. It refuses while any template task is still running.</li>
+        </ul>
+        <p>Use <kbd>Ctrl</kbd>+<kbd>C</kbd> to stop a foreground command, or close its tab with confirmation. Keep servers in the foreground rather than adding <code>&amp;</code>, so their completion status follows the running process. Up to <strong>12 tasks</strong> can be saved per profile.</p>
+        <p class="note">Tasks use the selected shell with <code>-c</code>; interactive shell startup files may not load. Put required environment setup in the command or a project script. Failure status comes from the process exit status, not from matching words in logs. Desktop notifications require a notification service on your desktop.</p>
+      </section>
+
+      <section id="customization">
+        <h2>Customization</h2>
+        <figure class="frame">
+          <img src="images/appearance.png" alt="Appearance settings with colors, fonts, and background image controls" width="920" height="960" loading="lazy">
+        </figure>
+        <p>Open <strong>Settings</strong> with <kbd>Ctrl</kbd>+<kbd>,</kbd>. Appearance changes apply to existing terminals without interrupting their shells.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Settings page</th><th scope="col">What you can change</th></tr></thead>
+            <tbody>
+              <tr><td>Appearance</td><td>Font, text/background colors, ANSI palette, cursor, spacing, sidebar width and background image</td></tr>
+              <tr><td>Terminal</td><td>Shell, scrollback, bell and scrolling behavior</td></tr>
+              <tr><td>Behavior</td><td>Close-to-tray/minimize behavior and tab close buttons</td></tr>
+              <tr><td>Shortcuts</td><td>Application shortcuts; an empty binding disables the action</td></tr>
+              <tr><td>Profiles</td><td>Project names, folders, shells, startup tasks and notifications</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>For a custom background, select <strong>Appearance → Choose image…</strong>, choose a local image and adjust dimming and <strong>cover</strong>, <strong>contain</strong> or <strong>stretch</strong> fitting. Keep the image at its selected path. Supported formats depend on your system's image loader; common formats include PNG and JPEG.</p>
+      </section>
+
+      <section id="configuration">
+        <h2>Configuration files</h2>
+        <p>Configuration lives in <code>~/.config/termlook/</code>, or <code>$XDG_CONFIG_HOME/termlook/</code>:</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">File</th><th scope="col">Purpose</th></tr></thead>
+            <tbody>
+              <tr><td><code>settings.json</code></td><td>Appearance, shortcuts, profiles and tasks</td></tr>
+              <tr><td><code>layout.json</code></td><td>Workspace, tab, directory and pane layout</td></tr>
+              <tr><td><code>theme.css</code></td><td>Optional custom GTK interface styling</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>After editing configuration files, press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> to reload. Invalid settings reloads leave the active settings unchanged.</p>
+      </section>
+
+      <section id="shortcuts">
+        <h2>Keyboard shortcuts</h2>
+        <div class="table-wrap keys">
+          <table>
+            <thead><tr><th scope="col">Action</th><th scope="col">Default shortcut</th></tr></thead>
+            <tbody>
+              <tr><td>Open projects</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd></td></tr>
+              <tr><td>New tab / workspace</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd></td></tr>
+              <tr><td>Close tab / pane</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>W</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd></td></tr>
+              <tr><td>Split left/right / top/bottom</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd></td></tr>
+              <tr><td>Focus pane / show all</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd></td></tr>
+              <tr><td>Next / previous tab</td><td><kbd>Ctrl</kbd>+<kbd>Tab</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Tab</kbd></td></tr>
+              <tr><td>Copy / paste</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd></td></tr>
+              <tr><td>Rename tab</td><td><kbd>F2</kbd></td></tr>
+              <tr><td>Settings / reload</td><td><kbd>Ctrl</kbd>+<kbd>,</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd></td></tr>
+              <tr><td>Help</td><td><kbd>F1</kbd></td></tr>
+              <tr><td>Quit</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Q</kbd></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><kbd>F1</kbd> opens quick-start guidance, searchable shortcuts, customization help and <strong>Projects</strong>, a guide to project creation, tasks, logs and deletion. Tooltips reflect your configured shortcuts. Right-click a terminal for Copy/Paste; <kbd>Ctrl</kbd>+<kbd>C</kbd> retains its normal role of interrupting the foreground command.</p>
+      </section>
+
+      <section id="sessions">
+        <h2>Session behavior</h2>
+        <p>Switching tabs or workspaces keeps opened sessions running. Restored tabs start their shells lazily when selected, while project tasks start when explicitly launched through the project workflow.</p>
+        <p class="note"><strong>Restarting restores the layout, not running processes or scrollback.</strong> Logs remain in their tabs until the tab or application closes and are not automatically archived to disk. Open a profile from <strong>Projects…</strong> after restarting to launch its tasks again.</p>
+        <p>Directory tracking uses the shell's OSC 7 support; otherwise the initially configured directory is retained.</p>
+      </section>
+
+      <section id="background">
+        <h2>Background mode</h2>
+        <p>With background mode enabled, closing the main window hides it if an AppIndicator host is available, or minimizes it otherwise. Use <strong>Quit</strong> to end the application. Optional Ubuntu tray integration:</p>
+        <div class="codeblock"><pre><code>sudo apt install libayatana-appindicator3-1 gnome-shell-extension-appindicator</code></pre></div>
+        <p>Enable the desktop's AppIndicator extension. Disabling background mode makes window close ask before quitting. Native Windows is not supported; see the <a href="https://github.com/SyntaxForge-T/Termlook/blob/main/docs/packaging.md">packaging notes</a> for WSLg.</p>
+      </section>
+    </main>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>© 2026 <a href="https://github.com/T0ks1k24">T0ks1k24</a> · MIT License · v<span data-release-version>@VERSION@</span></p>
+      <nav aria-label="Footer">
+        <a href="https://github.com/SyntaxForge-T/Termlook">Source</a>
+        <a data-release-link href="https://github.com/SyntaxForge-T/Termlook/releases">Releases</a>
+        <a href="https://github.com/SyntaxForge-T/Termlook/issues">Issues</a>
+        <a href="https://github.com/SyntaxForge-T/Termlook/blob/main/CONTRIBUTING.md">Contributing</a>
+        <a href="https://github.com/SyntaxForge-T/Termlook/blob/main/CONTRIBUTORS.md">Contributors</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

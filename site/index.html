@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TermLook – a workspace for every project</title>
+  <meta name="description" content="TermLook is a native Linux terminal with split panes, project profiles, startup tasks and live customization. Written in Rust with GTK 3 and VTE. Free and open source.">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#14151b" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f7f8fa" media="(prefers-color-scheme: light)">
+  <link rel="canonical" href="https://syntaxforge-t.github.io/Termlook/">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="TermLook">
+  <meta property="og:title" content="TermLook – a workspace for every project">
+  <meta property="og:description" content="A native Linux terminal with split panes, project profiles, startup tasks and live customization.">
+  <meta property="og:url" content="https://syntaxforge-t.github.io/Termlook/">
+  <meta property="og:image" content="https://syntaxforge-t.github.io/Termlook/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="TermLook running a project workspace with four terminal panes">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="stylesheet" href="style.css">
+  <script defer src="script.js"></script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "TermLook",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Linux",
+    "softwareVersion": "@VERSION@",
+    "description": "A native Linux terminal with split panes, project profiles, startup tasks and live customization.",
+    "url": "https://syntaxforge-t.github.io/Termlook/",
+    "downloadUrl": "https://github.com/SyntaxForge-T/Termlook/releases",
+    "codeRepository": "https://github.com/SyntaxForge-T/Termlook",
+    "license": "https://opensource.org/licenses/MIT",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+  }
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <a class="brand" href="./"><img src="favicon.svg" alt="" width="30" height="30">TermLook</a>
+      <nav class="nav" aria-label="Main">
+        <a class="nav-secondary" href="#features">Features</a>
+        <a class="nav-secondary" href="#screenshots">Screenshots</a>
+        <a href="#install">Install</a>
+        <a href="guide.html">Guide</a>
+        <a class="nav-cta" href="https://github.com/SyntaxForge-T/Termlook">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero">
+      <div class="container">
+        <img class="hero-logo" src="favicon.svg" alt="TermLook logo" width="88" height="88">
+        <p class="eyebrow">Native Linux terminal</p>
+        <h1>A workspace for every project.</h1>
+        <p class="lead">Split panes, project profiles, startup tasks and live customization.
+          Written in Rust with GTK&nbsp;3 and VTE. Run your own shell, and watch commands and logs side by side.</p>
+        <div class="cta">
+          <a class="btn btn-primary" data-deb-link href="https://github.com/SyntaxForge-T/Termlook/releases">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 20h16"/></svg>
+            <span data-release-label>Download the .deb package</span>
+          </a>
+          <a class="btn" href="https://github.com/SyntaxForge-T/Termlook">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.76 2.69 1.25 3.35.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.16-1.18 3.16-1.18.63 1.59.23 2.76.12 3.05.74.81 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+            View on GitHub
+          </a>
+        </div>
+        <p class="hero-note">Free and open source (MIT) · built and tested on Ubuntu 24.04 · Linux only</p>
+        <div class="hero-shot frame">
+          <img src="images/termlook.png" alt="TermLook running a project workspace with four terminal panes" width="1384" height="945">
+        </div>
+      </div>
+    </section>
+
+    <section id="features">
+      <div class="container">
+        <h2>Everything a project needs, in one window</h2>
+        <p class="section-lead">TermLook keeps each project in its own workspace, so you can switch context without stopping a running server or losing your layout.</p>
+        <div class="grid">
+          <article class="card">
+            <div class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></div>
+            <h3>Workspaces and tabs</h3>
+            <p>Organize terminals by project and switch between them without stopping running commands.</p>
+          </article>
+          <article class="card">
+            <div class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16M3 12h18"/></svg></div>
+            <h3>Up to four panes per tab</h3>
+            <p>Split horizontally or vertically, resize dividers, swap panes by dragging their headers, or focus a single pane.</p>
+          </article>
+          <article class="card">
+            <div class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>
+            <h3>Saved projects</h3>
+            <p>Choose a folder and a shell, then open, edit or delete the profile from a visible list.</p>
+          </article>
+          <article class="card">
+            <div class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></div>
+            <h3>Startup tasks</h3>
+            <p>Launch a project's commands in separate tabs with live output, exit status and optional desktop notifications.</p>
+          </article>
+          <article class="card">
+            <div class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></div>
+            <h3>Personal appearance</h3>
+            <p>Change fonts, colors, cursor style, shortcuts and background images without restarting your shells.</p>
+          </article>
+          <article class="card">
+            <div class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg></div>
+            <h3>Confirmed closing</h3>
+            <p>Closing a pane, tab or workspace, or quitting, asks before ending sessions. No more lost work.</p>
+          </article>
+          <article class="card">
+            <div class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg></div>
+            <h3>Layout restoration</h3>
+            <p>Workspace names, tabs, directories and split geometry come back on the next launch.</p>
+          </article>
+          <article class="card">
+            <div class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg></div>
+            <h3>Native and lightweight</h3>
+            <p>Rust, GTK 3 and VTE. Lazy terminal creation and coalesced layout writes. No Python runtime required.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="screenshots" class="section-alt">
+      <div class="container">
+        <h2>See it in action</h2>
+        <p class="section-lead">Screenshots show a temporary demo project, not personal files.</p>
+
+        <div class="row">
+          <div>
+            <h3>Projects, one click away</h3>
+            <p>Save a folder and shell as a project. Open it from <strong>Projects…</strong> and TermLook creates its workspace. Opening the same project again selects that workspace instead of creating a duplicate.</p>
+            <ul>
+              <li>Edit or delete a profile right from the list.</li>
+              <li>Deleting a profile never touches its folder, files or running terminals.</li>
+            </ul>
+          </div>
+          <figure class="frame">
+            <img src="images/projects.png" alt="Saved projects with their folders, task counts, and edit and delete buttons" width="720" height="440" loading="lazy">
+          </figure>
+        </div>
+
+        <div class="row flip">
+          <div>
+            <h3>Startup tasks with live logs</h3>
+            <p>Describe your dev setup once, one <code>Name | command</code> per line, and open the whole project with a click. Each task runs in its own tab, from the project folder.</p>
+            <ul>
+              <li>Tabs show <strong>▶</strong> while running, <strong>✓</strong> on success and <strong>✗</strong> with the exit code.</li>
+              <li>Notify on errors only, on every completion, or never.</li>
+              <li>Up to 12 tasks per profile.</li>
+            </ul>
+          </div>
+          <figure class="frame">
+            <img src="images/project-settings.png" alt="Project settings showing saved profiles and named startup commands" width="920" height="960" loading="lazy">
+          </figure>
+        </div>
+
+        <div class="row">
+          <div>
+            <h3>Make it yours, live</h3>
+            <p>Fonts, text and background colors, the ANSI palette, cursor style, spacing, sidebar width and a background image. Changes apply to existing terminals without interrupting their shells.</p>
+            <ul>
+              <li>Remap or disable any application shortcut.</li>
+              <li>Add your own GTK styling with an optional <code>theme.css</code>.</li>
+            </ul>
+          </div>
+          <figure class="frame">
+            <img src="images/appearance.png" alt="Appearance settings with colors, fonts, and background image controls" width="920" height="960" loading="lazy">
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="install">
+      <div class="container">
+        <h2>Install TermLook</h2>
+        <p class="section-lead">Use the prebuilt Debian package, or build it yourself. Native Windows is not supported.</p>
+        <div class="steps">
+          <article class="card">
+            <h3><span class="badge">Recommended</span> Debian package</h3>
+            <p>Download the <code>.deb</code> from the <a data-release-link href="https://github.com/SyntaxForge-T/Termlook/releases">latest release</a>, then install it:</p>
+            <div class="codeblock"><pre><code>sudo apt install ./termlook_*_amd64.deb</code></pre></div>
+            <p class="fineprint">Verify the download with <code>sha256sum -c SHA256SUMS</code>. Needs Ubuntu 24.04 or newer on amd64.</p>
+          </article>
+          <article class="card span-2">
+            <h3>Build from source</h3>
+            <p>Needs Rust <code>1.88+</code> and the GTK and VTE development libraries:</p>
+            <div class="codeblock"><pre><code>sudo apt install build-essential pkg-config \
+  libgtk-3-dev libvte-2.91-dev librsvg2-common
+git clone https://github.com/SyntaxForge-T/Termlook.git
+cd Termlook
+cargo run --release --locked</code></pre></div>
+          </article>
+          <article class="card">
+            <h3>Install for your user</h3>
+            <p>From a checkout, install the binary and an application-menu entry without root:</p>
+            <div class="codeblock"><pre><code>./scripts/install_desktop.sh</code></pre></div>
+            <p class="fineprint">Installs to <code>~/.local/bin/termlook</code>. Add that folder to your <code>PATH</code> to launch it from other terminals.</p>
+          </article>
+        </div>
+        <p class="fineprint updating"><strong>Updating:</strong> quit the old instance completely before opening the new one. TermLook is a single-instance application, so launching it while an older copy runs just brings that window to the front.</p>
+      </div>
+    </section>
+
+    <section id="shortcuts" class="section-alt">
+      <div class="container narrow">
+        <h2>Keyboard first</h2>
+        <p class="section-lead">The shortcuts you will use most. Press <kbd>F1</kbd> in the app for the full searchable list.</p>
+        <div class="table-wrap keys">
+          <table>
+            <thead><tr><th scope="col">Action</th><th scope="col">Shortcut</th></tr></thead>
+            <tbody>
+              <tr><td>Open projects</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd></td></tr>
+              <tr><td>New tab / workspace</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd></td></tr>
+              <tr><td>Split left/right / top/bottom</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd></td></tr>
+              <tr><td>Focus pane / show all</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd></td></tr>
+              <tr><td>Settings / reload</td><td><kbd>Ctrl</kbd>+<kbd>,</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd></td></tr>
+              <tr><td>Help</td><td><kbd>F1</kbd></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="fineprint"><kbd>Ctrl</kbd>+<kbd>C</kbd> keeps its normal role of interrupting the foreground command. <a href="guide.html#shortcuts">See every shortcut</a>.</p>
+      </div>
+    </section>
+
+    <section class="final">
+      <div class="container">
+        <h2>Open source, MIT licensed</h2>
+        <p>TermLook is built in the open. Read the guide, report a problem or send a pull request.</p>
+        <div class="cta">
+          <a class="btn btn-primary" href="guide.html">Read the guide</a>
+          <a class="btn" href="https://github.com/SyntaxForge-T/Termlook/issues/new/choose">Report an issue</a>
+          <a class="btn" href="https://github.com/SyntaxForge-T/Termlook/blob/main/CONTRIBUTING.md">Contribute</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>© 2026 <a href="https://github.com/T0ks1k24">T0ks1k24</a> · MIT License · v<span data-release-version>@VERSION@</span></p>
+      <nav aria-label="Footer">
+        <a href="https://github.com/SyntaxForge-T/Termlook">Source</a>
+        <a data-release-link href="https://github.com/SyntaxForge-T/Termlook/releases">Releases</a>
+        <a href="https://github.com/SyntaxForge-T/Termlook/issues">Issues</a>
+        <a href="https://github.com/SyntaxForge-T/Termlook/blob/main/CONTRIBUTING.md">Contributing</a>
+        <a href="https://github.com/SyntaxForge-T/Termlook/blob/main/CONTRIBUTORS.md">Contributors</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

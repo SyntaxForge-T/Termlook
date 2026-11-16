@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://syntaxforge-t.github.io/Termlook/sitemap.xml

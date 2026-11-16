@@ -1,12 +1,4 @@
-__pycache__/
-*.py[cod]
-.venv/
-*.snap
-/parts/
-/stage/
-/prime/
-
-/dist/
-*.deb
-
 /target/
+/dist/
+/_site/
+*.deb
