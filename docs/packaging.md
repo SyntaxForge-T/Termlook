@@ -7,7 +7,7 @@ Install Rust 1.88+, `build-essential`, `pkg-config`, `libgtk-3-dev` and
 
 ```sh
 ./scripts/build_deb.sh
-sudo apt install ./dist/termlook_0.4.2_amd64.deb
+sudo apt install ./dist/termlook_1.0.0_amd64.deb
 ```
 
 The script verifies that `VERSION` matches `Cargo.toml`, builds the locked release
