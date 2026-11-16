@@ -8,6 +8,7 @@ use std::{
     os::raw::{c_char, c_int, c_void},
     path::Path,
     rc::Rc,
+    time::{Duration, Instant},
 };
 use termlook::{model::home, settings::Settings};
 
@@ -34,6 +35,10 @@ extern "C" {
     fn vte_terminal_get_current_directory_uri(t: *mut Terminal) -> *const c_char;
     fn vte_terminal_copy_clipboard_format(t: *mut Terminal, format: c_int);
     fn vte_terminal_paste_clipboard(t: *mut Terminal);
+    fn vte_terminal_get_has_selection(t: *mut Terminal) -> c_int;
+    fn vte_terminal_select_all(t: *mut Terminal);
+    fn vte_terminal_get_font_scale(t: *mut Terminal) -> f64;
+    fn vte_terminal_set_font_scale(t: *mut Terminal, scale: f64);
     fn vte_terminal_feed(t: *mut Terminal, text: *const c_char, len: isize);
     fn vte_terminal_spawn_async(
         t: *mut Terminal,
@@ -59,6 +64,8 @@ struct Inner {
     cancel: gio::Cancellable,
     pending: Cell<bool>,
     started: Cell<bool>,
+    started_at: Cell<Option<Instant>>,
+    exited: Cell<bool>,
     closed: Cell<bool>,
     completion: RefCell<Option<Completion>>,
 }
@@ -74,6 +81,8 @@ impl Session {
             cancel: gio::Cancellable::new(),
             pending: Cell::new(false),
             started: Cell::new(false),
+            started_at: Cell::new(None),
+            exited: Cell::new(false),
             closed: Cell::new(false),
             completion: RefCell::new(None),
         }));
@@ -85,24 +94,17 @@ impl Session {
                 if let Some(inner) = weak.upgrade() {
                     let s = Session(inner);
                     if !s.0.closed.get() {
+                        s.0.exited.set(true);
+                        let result = exit_result(args[1].get::<i32>().unwrap_or(-1));
                         if let Some(done) = s.0.completion.borrow_mut().take() {
-                            let status = args[1].get::<i32>().unwrap_or(-1);
-                            let result = if status >= 0 && libc::WIFEXITED(status) {
-                                let code = libc::WEXITSTATUS(status);
-                                if code == 0 {
-                                    "Done".to_owned()
-                                } else {
-                                    format!("Exit {code}")
-                                }
-                            } else if status >= 0 && libc::WIFSIGNALED(status) {
-                                format!("Signal {}", libc::WTERMSIG(status))
-                            } else {
-                                "Failed".to_owned()
-                            };
                             s.feed(&format!("\r\n[Task: {result}. Logs remain here.]\r\n"));
                             done(result);
+                        } else if result == "Done" {
+                            s.feed("\r\n[Process ended. Close this pane or open a new tab.]\r\n");
                         } else {
-                            s.feed("\r\n[Session ended. Open a new tab to start a shell.]\r\n");
+                            s.feed(&format!(
+                                "\r\n[Process ended ({result}). Close this pane or open a new tab.]\r\n"
+                            ));
                         }
                     }
                 }
@@ -117,15 +119,17 @@ impl Session {
                 }
                 if let Some(inner) = weak.upgrade() {
                     let menu = gtk::Menu::new();
-                    for (label, copy) in [("Copy", true), ("Paste", false)] {
+                    let session = Session(inner.clone());
+                    for (label, kind) in [("Copy", 0), ("Paste", 1), ("Select all", 2)] {
                         let item = gtk::MenuItem::with_label(label);
-                        let s = Session(inner.clone());
-                        item.connect_activate(move |_| {
-                            if copy {
-                                s.copy();
-                            } else {
-                                s.paste();
-                            }
+                        if kind == 0 {
+                            item.set_sensitive(session.has_selection());
+                        }
+                        let s = session.clone();
+                        item.connect_activate(move |_| match kind {
+                            0 => s.copy(),
+                            1 => s.paste(),
+                            _ => s.select_all(),
                         });
                         menu.append(&item);
                     }
@@ -195,6 +199,37 @@ impl Session {
         self.widget().set_margin_top(s.padding);
         self.widget().set_margin_bottom(s.padding);
     }
+    /// True once the shell or task process has ended.
+    pub fn exited(&self) -> bool {
+        self.0.exited.get()
+    }
+    /// How long the process has been running (zero before it is started).
+    pub fn uptime(&self) -> Duration {
+        self.0
+            .started_at
+            .get()
+            .map_or(Duration::ZERO, |at| at.elapsed())
+    }
+    /// Multiply the text size by `factor`; a factor of 0 restores the default size.
+    pub fn zoom(&self, factor: f64) {
+        if self.0.closed.get() {
+            return;
+        }
+        let scale = if factor == 0.0 {
+            1.0
+        } else {
+            let scale =
+                (unsafe { vte_terminal_get_font_scale(self.ptr()) } * factor).clamp(0.4, 4.0);
+            if (scale - 1.0).abs() < 0.05 {
+                1.0
+            } else {
+                scale
+            }
+        };
+        unsafe {
+            vte_terminal_set_font_scale(self.ptr(), scale);
+        }
+    }
     pub fn start(&self, cwd: &str, settings: &Settings) {
         self.spawn(cwd, settings, None);
     }
@@ -214,6 +249,7 @@ impl Session {
             return;
         }
         self.0.pending.set(true);
+        self.0.started_at.set(Some(Instant::now()));
         let cwd = CString::new(if Path::new(cwd).is_dir() {
             cwd.to_owned()
         } else {
@@ -284,6 +320,16 @@ impl Session {
             }
         }
     }
+    pub fn has_selection(&self) -> bool {
+        !self.0.closed.get() && unsafe { vte_terminal_get_has_selection(self.ptr()) != 0 }
+    }
+    pub fn select_all(&self) {
+        if !self.0.closed.get() {
+            unsafe {
+                vte_terminal_select_all(self.ptr());
+            }
+        }
+    }
     pub fn paste(&self) {
         if !self.0.closed.get() {
             unsafe {
@@ -335,6 +381,19 @@ unsafe extern "C" fn spawned(
             "Could not start shell: {}\r\n",
             CStr::from_ptr((*error).message).to_string_lossy()
         ));
+    }
+}
+/// Describe a wait status as `Done`, `Exit N`, `Signal N` or `Failed`.
+fn exit_result(status: i32) -> String {
+    if status >= 0 && libc::WIFEXITED(status) {
+        match libc::WEXITSTATUS(status) {
+            0 => "Done".to_owned(),
+            code => format!("Exit {code}"),
+        }
+    } else if status >= 0 && libc::WIFSIGNALED(status) {
+        format!("Signal {}", libc::WTERMSIG(status))
+    } else {
+        "Failed".to_owned()
     }
 }
 pub fn user_shell(configured: &str) -> String {

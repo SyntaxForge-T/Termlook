@@ -29,7 +29,10 @@ const GROUPS: &[(&str, &[&str])] = &[
             "close-pane",
         ],
     ),
-    ("Terminal", &["copy", "paste"]),
+    (
+        "Terminal",
+        &["copy", "paste", "font-larger", "font-smaller", "font-reset"],
+    ),
     (
         "Application",
         &["settings", "reload-settings", "help", "quit"],
@@ -41,7 +44,8 @@ const MOUSE: &[(&str, &str)] = &[
     ("Rename a workspace or tab", "Double-click its name"),
     ("Swap two panes", "Drag a pane header onto another"),
     ("Resize panes", "Drag a divider"),
-    ("Copy or paste", "Right-click in a terminal"),
+    ("Copy, paste or select all", "Right-click in a terminal"),
+    ("Change the text size", "Hold Ctrl and scroll"),
     ("Move the window", "Drag the top bar"),
 ];
 

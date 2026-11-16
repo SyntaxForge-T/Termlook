@@ -124,6 +124,10 @@ impl Editor {
             "No saved projects yet. Choose a folder below and click Save project.",
         ));
         empty.set_line_wrap(true);
+        empty.set_margin_top(12);
+        empty.set_margin_bottom(12);
+        empty.style_context().add_class("pref-muted");
+        empty.show();
         selected.0.set_placeholder(Some(&empty));
         for name in profiles.keys() {
             selected.append(Some(name), name);
@@ -466,15 +470,36 @@ impl State {
             ],
         );
         dialog.set_widget_name("project-manager");
+        dialog.style_context().add_class("termlook-dialog");
         dialog.set_default_size(720, 440);
         let list = gtk::ListBox::new();
         let names: Vec<_> = self.settings.profiles.keys().cloned().collect();
         if names.is_empty() {
-            let label = gtk::Label::new(Some(
-                "Create a profile with a folder and shell to open your project in one click.",
+            dialog.set_default_size(560, 260);
+            dialog.style_context().add_class("no-primary");
+            let empty = gtk::Box::new(gtk::Orientation::Vertical, 10);
+            empty.set_valign(gtk::Align::Center);
+            let title = gtk::Label::new(Some("No saved projects yet"));
+            title.style_context().add_class("help-card-title");
+            let hint = gtk::Label::new(Some(
+                "A project remembers a folder, a shell and optional startup commands,\nso one click opens a ready workspace.",
             ));
-            label.set_line_wrap(true);
-            dialog.content_area().pack_start(&label, false, false, 16);
+            hint.set_justify(gtk::Justification::Center);
+            hint.style_context().add_class("pref-muted");
+            let create = gtk::Button::with_label("Create your first project…");
+            create.style_context().add_class("pref-primary");
+            create.set_halign(gtk::Align::Center);
+            create.set_margin_top(6);
+            let d = dialog.downgrade();
+            create.connect_clicked(move |_| {
+                if let Some(d) = d.upgrade() {
+                    d.response(gtk::ResponseType::Other(1));
+                }
+            });
+            empty.pack_start(&title, false, false, 0);
+            empty.pack_start(&hint, false, false, 0);
+            empty.pack_start(&create, false, false, 0);
+            dialog.content_area().pack_start(&empty, true, true, 16);
         }
         for (name, profile) in &self.settings.profiles {
             let row = gtk::ListBoxRow::new();
@@ -551,6 +576,7 @@ impl State {
                     &format!("Delete saved project “{key}”?"),
                 );
                 confirm.set_widget_name("project-delete-confirmation");
+                confirm.style_context().add_class("termlook-dialog");
                 confirm.set_secondary_text(Some(
                     "Only the profile will be deleted. Its folder, files, and running terminals are kept.",
                 ));
@@ -588,9 +614,12 @@ impl State {
             row.add(&contents);
             list.add(&row);
         }
-        let scroll = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
-        scroll.add(&list);
-        dialog.content_area().pack_start(&scroll, true, true, 8);
+        if !names.is_empty() {
+            let scroll =
+                gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
+            scroll.add(&list);
+            dialog.content_area().pack_start(&scroll, true, true, 8);
+        }
         let d = dialog.downgrade();
         list.connect_row_activated(move |_, _| {
             if let Some(d) = d.upgrade() {
@@ -602,6 +631,15 @@ impl State {
         }
         dialog.set_response_sensitive(gtk::ResponseType::Accept, !names.is_empty());
         dialog.set_response_sensitive(gtk::ResponseType::Other(2), !names.is_empty());
+        if names.is_empty() {
+            // Nothing to open yet: leave only the way to create a project.
+            for response in [gtk::ResponseType::Accept, gtk::ResponseType::Other(2)] {
+                if let Some(button) = dialog.widget_for_response(response) {
+                    button.set_no_show_all(true);
+                    button.hide();
+                }
+            }
+        }
         let weak = self.weak.clone();
         dialog.connect_response(move |d, r| {
             let name = list

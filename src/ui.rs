@@ -1,7 +1,7 @@
 use crate::{background::Backdrop, closing::Target, terminal::Session, tray::Tray};
 use gtk::prelude::*;
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     collections::HashMap,
     path::PathBuf,
     rc::{Rc, Weak},
@@ -14,6 +14,11 @@ use termlook::{
 };
 pub type Shared = Rc<RefCell<State>>;
 pub type WeakState = Weak<RefCell<State>>;
+/// The label in a pane header. `normal` is the text shown when no drag is hovering.
+struct PaneTitle {
+    label: gtk::Label,
+    normal: Rc<RefCell<String>>,
+}
 struct Grid {
     root: gtk::Box,
     tree: Tree,
@@ -30,10 +35,14 @@ pub struct State {
     sidebar: gtk::Box,
     spaces: gtk::Box,
     tabs: gtk::Box,
+    tab_scroll: gtk::ScrolledWindow,
     stack: gtk::Stack,
     backdrop: Backdrop,
     pub confirmation: Option<gtk::MessageDialog>,
     status: gtk::Label,
+    status_generation: Rc<Cell<u32>>,
+    titles: RefCell<HashMap<Id, PaneTitle>>,
+    revealed: Option<Id>,
     grids: HashMap<Id, Grid>,
     space_buttons: HashMap<Id, gtk::Box>,
     tab_buttons: HashMap<Id, gtk::Box>,
@@ -65,7 +74,11 @@ fn button(
     weak: &WeakState,
     f: impl Fn(&mut State) + 'static,
 ) -> gtk::Button {
-    let b = gtk::Button::with_label(label);
+    let b = if label.is_empty() {
+        gtk::Button::new()
+    } else {
+        gtk::Button::with_label(label)
+    };
     b.set_tooltip_text(Some(tip));
     b.set_can_focus(false);
     let weak = weak.clone();
@@ -92,6 +105,62 @@ fn tool_button(
     state.borrow_mut().hints.push((b.clone(), title, action));
     b
 }
+/// A toolbar button that shows a themed symbolic icon instead of text.
+fn icon_tool_button(
+    state: &Shared,
+    icon: &str,
+    title: &'static str,
+    action: &'static str,
+    weak: &WeakState,
+) -> gtk::Button {
+    let b = action_button("", title, weak, action);
+    b.set_image(Some(&gtk::Image::from_icon_name(
+        Some(icon),
+        gtk::IconSize::Menu,
+    )));
+    b.set_always_show_image(true);
+    b.style_context().add_class("tool-button");
+    state.borrow_mut().hints.push((b.clone(), title, action));
+    b
+}
+/// `⠿  2 · ~/projects/app`: the pane number and its working directory.
+fn pane_title(number: usize, cwd: &str) -> String {
+    let home = termlook::model::home();
+    let shown = match cwd.strip_prefix(home.trim_end_matches('/')) {
+        Some("") if home != "/" => "~".to_owned(),
+        Some(rest) if home != "/" && rest.starts_with('/') => format!("~{rest}"),
+        _ => cwd.to_owned(),
+    };
+    format!("⠿  {number} · {shown}")
+}
+/// Ctrl+plus / Ctrl+minus / Ctrl+0 on the number pad or with Shift held.
+fn zoom_alias(key: u32, mods: gdk::ModifierType) -> Option<&'static str> {
+    use gdk::keys::constants as k;
+    if mods - gdk::ModifierType::SHIFT_MASK != gdk::ModifierType::CONTROL_MASK {
+        return None;
+    }
+    if key == *k::plus || key == *k::KP_Add {
+        Some("font-larger")
+    } else if key == *k::underscore || key == *k::KP_Subtract {
+        Some("font-smaller")
+    } else if key == *k::KP_0 {
+        Some("font-reset")
+    } else {
+        None
+    }
+}
+/// Retry a few times: a new tab has no size until GTK has laid it out.
+fn schedule_reveal(weak: WeakState, tries: u8) {
+    glib::timeout_add_local_once(Duration::from_millis(40), move || {
+        let Some(state) = weak.upgrade() else {
+            return;
+        };
+        let done = state.try_borrow().is_ok_and(|s| s.reveal_active_tab());
+        if !done && tries > 0 {
+            schedule_reveal(weak, tries - 1);
+        }
+    });
+}
 fn detach(widget: &gtk::Widget) {
     if let Some(parent) = widget
         .parent()
@@ -116,6 +185,10 @@ fn class(widget: &impl IsA<gtk::Widget>, name: &str, enabled: bool) {
 }
 impl State {
     pub fn new(app: &gtk::Application, dir: PathBuf) -> Shared {
+        // The interface is dark by design; never inherit a light system theme.
+        if let Some(gtk_settings) = gtk::Settings::default() {
+            gtk_settings.set_gtk_application_prefer_dark_theme(true);
+        }
         let mut settings = storage::load_settings(&dir.join("settings.json"));
         if let Err(error) = validate_shortcuts(&settings) {
             eprintln!("Ignoring invalid keybindings: {error}");
@@ -149,6 +222,8 @@ impl State {
         sidebar.set_widget_name("sidebar");
         let spaces = gtk::Box::new(gtk::Orientation::Vertical, 2);
         let tabs = gtk::Box::new(gtk::Orientation::Horizontal, 2);
+        let tab_scroll =
+            gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
         let stack = gtk::Stack::new();
         let backdrop = Backdrop::new(&stack, &settings, image);
         let status = gtk::Label::new(None);
@@ -166,10 +241,14 @@ impl State {
                 sidebar: sidebar.clone(),
                 spaces,
                 tabs: tabs.clone(),
+                tab_scroll: tab_scroll.clone(),
                 stack: stack.clone(),
                 backdrop,
                 confirmation: None,
                 status: status.clone(),
+                status_generation: Rc::new(Cell::new(0)),
+                titles: RefCell::new(HashMap::new()),
+                revealed: None,
                 grids: HashMap::new(),
                 space_buttons: HashMap::new(),
                 tab_buttons: HashMap::new(),
@@ -208,11 +287,40 @@ impl State {
         let bar = gtk::Box::new(gtk::Orientation::Horizontal, 4);
         bar.set_widget_name("tabbar");
         title.pack_start(&bar, true, true, 0);
-        let scroll = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
-        scroll.set_policy(gtk::PolicyType::Automatic, gtk::PolicyType::Never);
-        scroll.set_min_content_height(38);
-        scroll.add(&tabs);
-        bar.pack_start(&scroll, true, true, 0);
+        // External: scrollable with the wheel and by revealing the active tab, but no scrollbar.
+        tab_scroll.set_policy(gtk::PolicyType::External, gtk::PolicyType::Never);
+        tab_scroll.set_min_content_height(38);
+        tab_scroll.add(&tabs);
+        // A mouse wheel has no horizontal axis: let it scroll a long row of tabs.
+        tab_scroll.connect_scroll_event(|scroll, event| {
+            let delta = match event.direction() {
+                gdk::ScrollDirection::Up | gdk::ScrollDirection::Left => -1.0,
+                gdk::ScrollDirection::Down | gdk::ScrollDirection::Right => 1.0,
+                gdk::ScrollDirection::Smooth => {
+                    let (dx, dy) = event.delta();
+                    if dy != 0.0 {
+                        dy
+                    } else {
+                        dx
+                    }
+                }
+                _ => return glib::Propagation::Proceed,
+            };
+            let adjustment = scroll.hadjustment();
+            let end = (adjustment.upper() - adjustment.page_size()).max(adjustment.lower());
+            adjustment
+                .set_value((adjustment.value() + delta * 90.0).clamp(adjustment.lower(), end));
+            glib::Propagation::Stop
+        });
+        bar.pack_start(&tab_scroll, true, true, 0);
+        let separator = |bar: &gtk::Box| {
+            let separator = gtk::Separator::new(gtk::Orientation::Vertical);
+            separator.set_margin_top(8);
+            separator.set_margin_bottom(8);
+            separator.set_margin_start(4);
+            separator.set_margin_end(4);
+            bar.pack_start(&separator, false, false, 0);
+        };
         for (label, tip, action) in [
             ("◫", "Split left / right", "split-horizontal"),
             ("⬒", "Split top / bottom", "split-vertical"),
@@ -221,15 +329,9 @@ impl State {
             ("", "", ""),
             ("+", "New tab", "new-tab"),
             ("", "", ""),
-            ("×", "Close / hide window", "close-window"),
         ] {
             if action.is_empty() {
-                let separator = gtk::Separator::new(gtk::Orientation::Vertical);
-                separator.set_margin_top(8);
-                separator.set_margin_bottom(8);
-                separator.set_margin_start(4);
-                separator.set_margin_end(4);
-                bar.pack_start(&separator, false, false, 0);
+                separator(&bar);
             } else {
                 bar.pack_start(
                     &tool_button(&state, label, tip, action, &weak),
@@ -238,6 +340,26 @@ impl State {
                     0,
                 );
             }
+        }
+        for (icon, tip, action) in [
+            ("window-minimize-symbolic", "Minimize", "minimize-window"),
+            (
+                "window-maximize-symbolic",
+                "Maximize / restore",
+                "toggle-maximize",
+            ),
+            ("window-close-symbolic", "Close", "close-window"),
+        ] {
+            let b = icon_tool_button(&state, icon, tip, action, &weak);
+            if action == "close-window" {
+                // Whether the tray exists is only known at runtime: refresh the tooltip on hover.
+                let w = weak.clone();
+                b.connect_enter_notify_event(move |_, _| {
+                    enqueue(&w, |s| s.refresh_hints());
+                    glib::Propagation::Proceed
+                });
+            }
+            bar.pack_start(&b, false, false, 0);
         }
         let root = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         window.add(&root);
@@ -275,6 +397,15 @@ impl State {
                 return glib::Propagation::Proceed;
             };
             let state = state.borrow();
+            if let Some(action) = zoom_alias(
+                *event.keyval(),
+                event.state() & gtk::accelerator_get_default_mod_mask(),
+            ) {
+                if !state.settings.binding(action).is_empty() {
+                    enqueue(&w, move |s| s.action(action));
+                    return glib::Propagation::Stop;
+                }
+            }
             for (action, _, _) in ACTIONS {
                 let binding = state.settings.binding(action);
                 if binding.is_empty() {
@@ -334,12 +465,27 @@ impl State {
     /// Show each toolbar action's current shortcut in its tooltip.
     fn refresh_hints(&self) {
         for (button, title, action) in &self.hints {
+            let title = if *action == "close-window" {
+                self.close_title()
+            } else {
+                *title
+            };
             let shortcut = shortcut_label(self.settings.binding(action));
             if shortcut.is_empty() {
-                button.set_tooltip_text(Some(*title));
+                button.set_tooltip_text(Some(title));
             } else {
                 button.set_tooltip_text(Some(&format!("{title}  ·  {shortcut}")));
             }
+        }
+    }
+    /// What the window's close button does with the current settings.
+    fn close_title(&self) -> &'static str {
+        if !self.settings.close_to_tray {
+            "Quit TermLook"
+        } else if self.tray.as_ref().is_some_and(|t| t.available.get()) {
+            "Hide to the tray — sessions keep running"
+        } else {
+            "Minimize — sessions keep running"
         }
     }
     fn style(&self) {
@@ -379,6 +525,15 @@ impl State {
         self.status.set_text(text);
         self.status.show();
         eprintln!("{text}");
+        // Messages describe a moment: let them go away instead of sticking forever.
+        let generation = self.status_generation.get().wrapping_add(1);
+        self.status_generation.set(generation);
+        let (label, counter) = (self.status.clone(), self.status_generation.clone());
+        glib::timeout_add_local_once(Duration::from_secs(10), move || {
+            if counter.get() == generation {
+                label.hide();
+            }
+        });
     }
     fn schedule_save(&mut self) {
         if self.save_timer.is_none() {
@@ -454,7 +609,7 @@ impl State {
                 w.selected = w.tabs.len() - 1;
             }
             "new-workspace" => {
-                self.ask("New workspace", "project", |s, name| {
+                self.ask("New workspace", "project", "Create", |s, name| {
                     if s.layout.workspaces.len() < 50 {
                         s.layout.workspaces.push(Workspace::new(&name));
                         s.layout.selected = s.layout.workspaces.len() - 1;
@@ -533,6 +688,28 @@ impl State {
                 self.restore();
                 return;
             }
+            "minimize-window" => {
+                self.window.iconify();
+                return;
+            }
+            "toggle-maximize" => {
+                if self.window.is_maximized() {
+                    self.window.unmaximize();
+                } else {
+                    self.window.maximize();
+                }
+                return;
+            }
+            "font-larger" | "font-smaller" | "font-reset" => {
+                if let Some(session) = self.sessions.get(&self.layout.tab().active) {
+                    session.zoom(match action {
+                        "font-larger" => 1.1,
+                        "font-smaller" => 1.0 / 1.1,
+                        _ => 0.0,
+                    });
+                }
+                return;
+            }
             "close-window" if self.settings.close_to_tray => {
                 self.persist();
                 if self.tray.as_ref().is_some_and(|t| t.available.get()) {
@@ -550,16 +727,17 @@ impl State {
         }
         self.render();
     }
-    fn ask(&self, title: &str, initial: &str, f: impl Fn(&mut State, String) + 'static) {
+    fn ask(&self, title: &str, initial: &str, ok: &str, f: impl Fn(&mut State, String) + 'static) {
         let dialog = gtk::Dialog::with_buttons(
             Some(title),
             Some(&self.window),
             gtk::DialogFlags::MODAL | gtk::DialogFlags::DESTROY_WITH_PARENT,
             &[
                 ("Cancel", gtk::ResponseType::Cancel),
-                ("Save", gtk::ResponseType::Accept),
+                (ok, gtk::ResponseType::Accept),
             ],
         );
+        dialog.style_context().add_class("termlook-dialog");
         let entry = gtk::Entry::new();
         entry.set_text(initial);
         entry.set_max_length(80);
@@ -592,7 +770,7 @@ impl State {
             .flat_map(|w| &w.tabs)
             .find(|t| t.id == id)
         {
-            self.ask("Tab name", &tab.name, move |s, name| {
+            self.ask("Tab name", &tab.name, "Rename", move |s, name| {
                 if let Some(t) = s.layout.find_tab_mut(id) {
                     t.name = name;
                     s.render();
@@ -602,7 +780,7 @@ impl State {
     }
     fn rename_workspace(&self, id: Id) {
         if let Some(w) = self.layout.workspaces.iter().find(|w| w.id == id) {
-            self.ask("Workspace name", &w.name, move |s, name| {
+            self.ask("Workspace name", &w.name, "Rename", move |s, name| {
                 if let Some(w) = s.layout.workspaces.iter_mut().find(|w| w.id == id) {
                     w.name = name;
                     s.render();
@@ -686,6 +864,7 @@ impl State {
             self.nav_signature = signature;
         }
         let w = &self.layout.workspaces[self.layout.selected];
+        let mut tabs_changed = false;
         let signature = format!(
             "{}:{:?}",
             w.id,
@@ -714,6 +893,7 @@ impl State {
             }
             self.tabs.show_all();
             self.tab_signature = signature;
+            tabs_changed = true;
         }
         for (id, row) in &self.space_buttons {
             class(row, "active", *id == w.id);
@@ -724,9 +904,35 @@ impl State {
                 row.set_tooltip_text(Some(&t.active_pane().cwd));
             }
         }
+        // Keep the active tab on screen when there are more tabs than fit in the bar.
+        let active = w.tabs[w.selected].id;
+        if tabs_changed || self.revealed != Some(active) {
+            self.revealed = Some(active);
+            schedule_reveal(self.weak.clone(), 8);
+        }
+    }
+    /// Scroll the tab bar so the active tab is fully visible. False means: try again later.
+    fn reveal_active_tab(&self) -> bool {
+        let w = &self.layout.workspaces[self.layout.selected];
+        let Some(row) = self.tab_buttons.get(&w.tabs[w.selected].id) else {
+            return true;
+        };
+        let rect = row.allocation();
+        if rect.width() <= 1 {
+            return false;
+        }
+        let adjustment = self.tab_scroll.hadjustment();
+        let (start, end) = (f64::from(rect.x()), f64::from(rect.x() + rect.width()));
+        if start < adjustment.value() {
+            adjustment.set_value((start - 6.0).max(adjustment.lower()));
+        } else if end > adjustment.value() + adjustment.page_size() {
+            adjustment.set_value(end + 6.0 - adjustment.page_size());
+        }
+        true
     }
     pub fn render(&mut self) {
         let live = self.layout.live_ids();
+        self.titles.borrow_mut().retain(|id, _| live.contains(id));
         for (id, task) in &mut self.project_tasks {
             if !live.contains(id) {
                 task.running = false;
@@ -798,10 +1004,42 @@ impl State {
                                         s.schedule_save();
                                     }
                                 }
+                                s.refresh_pane_title(tid, id);
                             }
                         });
                     },
                 );
+                let weak = self.weak.clone();
+                session
+                    .widget()
+                    .connect_local("child-exited", false, move |args| {
+                        let status = args[1].get::<i32>().unwrap_or(-1);
+                        enqueue(&weak, move |s| s.shell_exited(id, status));
+                        None
+                    });
+                // Ctrl + mouse wheel changes the text size, as in other terminals.
+                let weak = self.weak.clone();
+                session.widget().connect_scroll_event(move |_, event| {
+                    if !event.state().contains(gdk::ModifierType::CONTROL_MASK) {
+                        return glib::Propagation::Proceed;
+                    }
+                    let factor = match event.direction() {
+                        gdk::ScrollDirection::Up => 1.1,
+                        gdk::ScrollDirection::Down => 1.0 / 1.1,
+                        gdk::ScrollDirection::Smooth => match event.delta().1 {
+                            dy if dy < 0.0 => 1.1,
+                            dy if dy > 0.0 => 1.0 / 1.1,
+                            _ => return glib::Propagation::Stop,
+                        },
+                        _ => return glib::Propagation::Proceed,
+                    };
+                    enqueue(&weak, move |s| {
+                        if let Some(session) = s.sessions.get(&id) {
+                            session.zoom(factor);
+                        }
+                    });
+                    glib::Propagation::Stop
+                });
                 if let Some(task) = self.project_tasks.get(&pane.id) {
                     let weak = self.weak.clone();
                     let id = pane.id;
@@ -853,6 +1091,51 @@ impl State {
         }
         self.schedule_save();
     }
+    /// Show the pane's current directory in its header.
+    fn refresh_pane_title(&self, tab: Id, pane: Id) {
+        let Some(t) = self
+            .layout
+            .workspaces
+            .iter()
+            .flat_map(|w| &w.tabs)
+            .find(|t| t.id == tab)
+        else {
+            return;
+        };
+        let Some(index) = t.panes.iter().position(|p| p.id == pane) else {
+            return;
+        };
+        if let Some(title) = self.titles.borrow().get(&pane) {
+            let text = pane_title(index + 1, &t.panes[index].cwd);
+            title.label.set_text(&text);
+            *title.normal.borrow_mut() = text;
+        }
+    }
+    /// A shell that finished normally closes its pane, like in other terminals.
+    /// Failures and project tasks stay on screen so their output can be read.
+    fn shell_exited(&mut self, pane: Id, status: i32) {
+        if self.project_tasks.contains_key(&pane) {
+            return;
+        }
+        let Some(session) = self.sessions.get(&pane) else {
+            return;
+        };
+        let clean = status >= 0 && libc::WIFEXITED(status) && libc::WEXITSTATUS(status) == 0;
+        // A shell that dies at once is misconfigured: keep its message rather than loop.
+        if !clean || session.uptime() < Duration::from_secs(2) {
+            return;
+        }
+        let tab = self
+            .layout
+            .workspaces
+            .iter()
+            .flat_map(|w| &w.tabs)
+            .find(|t| t.panes.iter().any(|p| p.id == pane))
+            .map(|t| t.id);
+        if let Some(tab) = tab {
+            self.finish_close(Target::Pane { tab, pane });
+        }
+    }
     fn highlight(&self) {
         for (id, session) in &self.sessions {
             if let Some(parent) = session.widget().parent() {
@@ -870,10 +1153,18 @@ impl State {
                 let header = gtk::Box::new(gtk::Orientation::Horizontal, 0);
                 header.style_context().add_class("pane-header");
                 let grip = gtk::EventBox::new();
-                let label = gtk::Label::new(Some(&format!(
-                    "⠿  Pane {}",
-                    tab.panes.iter().position(|p| p.id == id).unwrap_or(0) + 1
-                )));
+                let index = tab.panes.iter().position(|p| p.id == id).unwrap_or(0);
+                let initial = pane_title(index + 1, &tab.panes[index].cwd);
+                let normal = Rc::new(RefCell::new(initial.clone()));
+                let label = gtk::Label::new(Some(&initial));
+                label.set_ellipsize(pango::EllipsizeMode::Middle);
+                self.titles.borrow_mut().insert(
+                    id,
+                    PaneTitle {
+                        label: label.clone(),
+                        normal: normal.clone(),
+                    },
+                );
                 grip.add(&label);
                 grip.set_widget_name(&format!("pane-{tid}-{id}"));
                 grip.set_tooltip_text(Some("Drag onto another pane to swap"));
@@ -973,12 +1264,11 @@ impl State {
                     true
                 });
                 let c = cell.downgrade();
-                let title = label.text();
                 header.connect_drag_leave(move |_, _, _| {
                     if let Some(c) = c.upgrade() {
                         class(&c, "drop-target", false);
                     }
-                    label.set_text(&title);
+                    label.set_text(&normal.borrow());
                 });
                 cell.upcast()
             }
@@ -1031,11 +1321,7 @@ impl State {
                     let ratio = f64::from(paned.position()) / f64::from(size);
                     let path = path.clone();
                     enqueue(&weak, move |s| {
-                        if !s
-                            .grids
-                            .get(&tid)
-                            .is_some_and(|g| g.generation == generation)
-                        {
+                        if s.grids.get(&tid).is_none_or(|g| g.generation != generation) {
                             return;
                         }
                         if let Some(t) = s.layout.find_tab_mut(tid) {
