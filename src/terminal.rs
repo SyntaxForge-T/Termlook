@@ -35,6 +35,30 @@ extern "C" {
     fn vte_terminal_get_current_directory_uri(t: *mut Terminal) -> *const c_char;
     fn vte_terminal_copy_clipboard_format(t: *mut Terminal, format: c_int);
     fn vte_terminal_paste_clipboard(t: *mut Terminal);
+    fn vte_regex_new_for_search(
+        pattern: *const c_char,
+        length: isize,
+        flags: u32,
+        error: *mut *mut glib::ffi::GError,
+    ) -> *mut c_void;
+    fn vte_regex_new_for_match(
+        pattern: *const c_char,
+        length: isize,
+        flags: u32,
+        error: *mut *mut glib::ffi::GError,
+    ) -> *mut c_void;
+    fn vte_regex_unref(regex: *mut c_void) -> *mut c_void;
+    fn vte_terminal_search_set_regex(t: *mut Terminal, regex: *mut c_void, flags: u32);
+    fn vte_terminal_search_set_wrap_around(t: *mut Terminal, wrap: c_int);
+    fn vte_terminal_search_find_next(t: *mut Terminal) -> c_int;
+    fn vte_terminal_search_find_previous(t: *mut Terminal) -> c_int;
+    fn vte_terminal_match_add_regex(t: *mut Terminal, regex: *mut c_void, flags: u32) -> c_int;
+    fn vte_terminal_match_set_cursor_name(t: *mut Terminal, tag: c_int, name: *const c_char);
+    fn vte_terminal_match_check_event(
+        t: *mut Terminal,
+        event: *mut gdk::ffi::GdkEvent,
+        tag: *mut c_int,
+    ) -> *mut c_char;
     fn vte_terminal_get_has_selection(t: *mut Terminal) -> c_int;
     fn vte_terminal_select_all(t: *mut Terminal);
     fn vte_terminal_get_font_scale(t: *mut Terminal) -> f64;
@@ -58,6 +82,11 @@ extern "C" {
         data: *mut c_void,
     );
 }
+// PCRE2 compile flags VTE expects: UTF-8 text, no UTF re-check, ^/$ per line.
+const REGEX_FLAGS: u32 = 0x0008_0000 | 0x4000_0000 | 0x0000_0400;
+const PCRE2_CASELESS: u32 = 0x0000_0008;
+/// http(s) links; trailing punctuation such as `.` or `)` is not part of the link.
+const LINK_PATTERN: &str = r#"https?://[^\s<>"'`]+[^\s<>"'`.,;:!?)\]}]"#;
 type Completion = Box<dyn Fn(String)>;
 struct Inner {
     widget: gtk::Widget,
@@ -87,6 +116,7 @@ impl Session {
             completion: RefCell::new(None),
         }));
         session.apply(settings);
+        session.add_link_matcher();
         let weak = Rc::downgrade(&session.0);
         session
             .widget()
@@ -320,6 +350,72 @@ impl Session {
             }
         }
     }
+    fn add_link_matcher(&self) {
+        let pattern = CString::new(LINK_PATTERN).expect("static pattern");
+        unsafe {
+            let mut error = std::ptr::null_mut();
+            let regex = vte_regex_new_for_match(pattern.as_ptr(), -1, REGEX_FLAGS, &mut error);
+            if regex.is_null() {
+                if !error.is_null() {
+                    glib::ffi::g_error_free(error);
+                }
+                return;
+            }
+            let tag = vte_terminal_match_add_regex(self.ptr(), regex, 0);
+            vte_regex_unref(regex);
+            vte_terminal_match_set_cursor_name(self.ptr(), tag, c"pointer".as_ptr());
+        }
+    }
+    /// The link under the mouse pointer of a button event, if any.
+    pub fn link_at(&self, event: &gdk::EventButton) -> Option<String> {
+        if self.0.closed.get() {
+            return None;
+        }
+        let event: &gdk::Event = event;
+        unsafe {
+            let raw = vte_terminal_match_check_event(
+                self.ptr(),
+                event.to_glib_none().0,
+                std::ptr::null_mut(),
+            );
+            (!raw.is_null()).then(|| from_glib_full(raw))
+        }
+    }
+    /// Find `text` (case-insensitive, literal) in the scrollback and select it.
+    /// An empty text clears the search. Returns whether a match was found.
+    pub fn search(&self, text: &str, forward: bool) -> bool {
+        if self.0.closed.get() {
+            return false;
+        }
+        unsafe {
+            if text.is_empty() {
+                vte_terminal_search_set_regex(self.ptr(), std::ptr::null_mut(), 0);
+                return false;
+            }
+            let pattern = CString::new(escape_literal(text)).unwrap_or_default();
+            let mut error = std::ptr::null_mut();
+            let regex = vte_regex_new_for_search(
+                pattern.as_ptr(),
+                -1,
+                REGEX_FLAGS | PCRE2_CASELESS,
+                &mut error,
+            );
+            if regex.is_null() {
+                if !error.is_null() {
+                    glib::ffi::g_error_free(error);
+                }
+                return false;
+            }
+            vte_terminal_search_set_regex(self.ptr(), regex, 0);
+            vte_regex_unref(regex);
+            vte_terminal_search_set_wrap_around(self.ptr(), 1);
+            if forward {
+                vte_terminal_search_find_next(self.ptr()) != 0
+            } else {
+                vte_terminal_search_find_previous(self.ptr()) != 0
+            }
+        }
+    }
     pub fn has_selection(&self) -> bool {
         !self.0.closed.get() && unsafe { vte_terminal_get_has_selection(self.ptr()) != 0 }
     }
@@ -382,6 +478,17 @@ unsafe extern "C" fn spawned(
             CStr::from_ptr((*error).message).to_string_lossy()
         ));
     }
+}
+/// Backslash-escape every ASCII punctuation mark so the text matches literally.
+fn escape_literal(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() * 2);
+    for c in text.chars() {
+        if c.is_ascii_punctuation() {
+            out.push('\\');
+        }
+        out.push(c);
+    }
+    out
 }
 /// Describe a wait status as `Done`, `Exit N`, `Signal N` or `Failed`.
 fn exit_result(status: i32) -> String {

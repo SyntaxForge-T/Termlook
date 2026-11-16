@@ -41,6 +41,9 @@ pub struct State {
     pub confirmation: Option<gtk::MessageDialog>,
     status: gtk::Label,
     status_generation: Rc<Cell<u32>>,
+    search_bar: gtk::SearchBar,
+    search_entry: gtk::SearchEntry,
+    search_result: gtk::Label,
     titles: RefCell<HashMap<Id, PaneTitle>>,
     revealed: Option<Id>,
     grids: HashMap<Id, Grid>,
@@ -226,6 +229,9 @@ impl State {
             gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
         let stack = gtk::Stack::new();
         let backdrop = Backdrop::new(&stack, &settings, image);
+        let search_bar = gtk::SearchBar::new();
+        let search_entry = gtk::SearchEntry::new();
+        let search_result = gtk::Label::new(None);
         let status = gtk::Label::new(None);
         status.set_widget_name("status");
         status.set_xalign(0.0);
@@ -247,6 +253,9 @@ impl State {
                 confirmation: None,
                 status: status.clone(),
                 status_generation: Rc::new(Cell::new(0)),
+                search_bar: search_bar.clone(),
+                search_entry: search_entry.clone(),
+                search_result: search_result.clone(),
                 titles: RefCell::new(HashMap::new()),
                 revealed: None,
                 grids: HashMap::new(),
@@ -384,6 +393,60 @@ impl State {
         let body = gtk::Box::new(gtk::Orientation::Vertical, 0);
         body.set_widget_name("surface");
         root.pack_start(&body, true, true, 0);
+        // Find bar (Ctrl+Shift+F): searches the focused terminal's scrollback.
+        search_entry.set_width_chars(30);
+        search_entry.set_placeholder_text(Some("Find in scrollback"));
+        search_result.style_context().add_class("pref-muted");
+        let find_row = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+        find_row.pack_start(&search_entry, false, false, 0);
+        for (icon, tip, forward) in [
+            ("go-up-symbolic", "Previous match  ·  Shift+Enter", false),
+            ("go-down-symbolic", "Next match  ·  Enter", true),
+        ] {
+            let b = gtk::Button::from_icon_name(Some(icon), gtk::IconSize::Menu);
+            b.set_tooltip_text(Some(tip));
+            b.set_can_focus(false);
+            let w = weak.clone();
+            b.connect_clicked(move |_| enqueue(&w, move |s| s.find(forward)));
+            find_row.pack_start(&b, false, false, 0);
+        }
+        find_row.pack_start(&search_result, false, false, 6);
+        search_bar.add(&find_row);
+        search_bar.connect_entry(&search_entry);
+        search_bar.set_show_close_button(true);
+        let w = weak.clone();
+        search_entry.connect_search_changed(move |_| enqueue(&w, |s| s.find(true)));
+        let w = weak.clone();
+        search_entry.connect_activate(move |_| enqueue(&w, |s| s.find(true)));
+        let w = weak.clone();
+        search_entry.connect_previous_match(move |_| enqueue(&w, |s| s.find(false)));
+        let w = weak.clone();
+        search_entry.connect_next_match(move |_| enqueue(&w, |s| s.find(true)));
+        let w = weak.clone();
+        search_entry.connect_key_press_event(move |_, event| {
+            // Shift+Enter walks backwards, like in most search boxes.
+            let key = *event.keyval();
+            let enter =
+                key == *gdk::keys::constants::Return || key == *gdk::keys::constants::KP_Enter;
+            if enter && event.state().contains(gdk::ModifierType::SHIFT_MASK) {
+                enqueue(&w, |s| s.find(false));
+                return glib::Propagation::Stop;
+            }
+            glib::Propagation::Proceed
+        });
+        let w = weak.clone();
+        search_bar.connect_search_mode_enabled_notify(move |bar| {
+            if !bar.is_search_mode() {
+                // Closing the bar hands the keyboard back to the terminal.
+                enqueue(&w, |s| {
+                    if let Some(session) = s.sessions.get(&s.layout.tab().active) {
+                        session.search("", true);
+                        session.widget().grab_focus();
+                    }
+                });
+            }
+        });
+        body.pack_start(&search_bar, false, false, 0);
         body.pack_start(&state.borrow().backdrop.widget, true, true, 0);
         body.pack_end(&status, false, false, 0);
         let w = weak.clone();
@@ -698,6 +761,11 @@ impl State {
                 } else {
                     self.window.maximize();
                 }
+                return;
+            }
+            "find" => {
+                self.search_bar.set_search_mode(true);
+                self.search_entry.grab_focus();
                 return;
             }
             "font-larger" | "font-smaller" | "font-reset" => {
@@ -1017,6 +1085,32 @@ impl State {
                         enqueue(&weak, move |s| s.shell_exited(id, status));
                         None
                     });
+                // Ctrl+click opens a web link under the pointer.
+                let weak = self.weak.clone();
+                session
+                    .widget()
+                    .connect_button_press_event(move |_, event| {
+                        if event.button() != 1
+                            || !event.state().contains(gdk::ModifierType::CONTROL_MASK)
+                        {
+                            return glib::Propagation::Proceed;
+                        }
+                        let link = weak.upgrade().and_then(|state| {
+                            state.try_borrow().ok()?.sessions.get(&id)?.link_at(event)
+                        });
+                        let Some(url) = link else {
+                            return glib::Propagation::Proceed;
+                        };
+                        if let Err(error) = gio::AppInfo::launch_default_for_uri(
+                            &url,
+                            None::<&gio::AppLaunchContext>,
+                        ) {
+                            enqueue(&weak, move |s| {
+                                s.error(&format!("Could not open {url}: {error}"));
+                            });
+                        }
+                        glib::Propagation::Stop
+                    });
                 // Ctrl + mouse wheel changes the text size, as in other terminals.
                 let weak = self.weak.clone();
                 session.widget().connect_scroll_event(move |_, event| {
@@ -1090,6 +1184,19 @@ impl State {
             session.widget().grab_focus();
         }
         self.schedule_save();
+    }
+    /// Search the focused terminal for the text in the find bar.
+    fn find(&self, forward: bool) {
+        let text = self.search_entry.text();
+        let found = self
+            .sessions
+            .get(&self.layout.tab().active)
+            .is_some_and(|session| session.search(&text, forward));
+        self.search_result.set_text(if found || text.is_empty() {
+            ""
+        } else {
+            "No matches"
+        });
     }
     /// Show the pane's current directory in its header.
     fn refresh_pane_title(&self, tab: Id, pane: Id) {

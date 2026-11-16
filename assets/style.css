@@ -130,3 +130,5 @@ scrollbar slider:hover { background: #666a7a; }
 notebook > header > tabs > tab label { color: #a4a8ba; }
 textview, textview text { background: #1e2028; color: #e1e3ed; }
 .help-window .help-title { color: #efeff5; }
+searchbar, searchbar > revealer > box { background: #1c1d24; border-color: #2c2e38; color: #d4d5e0; }
+searchbar entry { background: #2d2f38; color: #eeeef3; border-color: #41434e; }

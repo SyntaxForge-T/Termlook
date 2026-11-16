@@ -31,7 +31,14 @@ const GROUPS: &[(&str, &[&str])] = &[
     ),
     (
         "Terminal",
-        &["copy", "paste", "font-larger", "font-smaller", "font-reset"],
+        &[
+            "copy",
+            "paste",
+            "find",
+            "font-larger",
+            "font-smaller",
+            "font-reset",
+        ],
     ),
     (
         "Application",
@@ -46,6 +53,7 @@ const MOUSE: &[(&str, &str)] = &[
     ("Resize panes", "Drag a divider"),
     ("Copy, paste or select all", "Right-click in a terminal"),
     ("Change the text size", "Hold Ctrl and scroll"),
+    ("Open a link", "Ctrl+click it in a terminal"),
     ("Move the window", "Drag the top bar"),
 ];
 
@@ -155,6 +163,19 @@ fn quick_start(settings: &Settings) -> gtk::ScrolledWindow {
                 hint(settings, "split-horizontal"),
                 hint(settings, "split-vertical"),
                 hint(settings, "zoom")
+            ),
+        ),
+        (
+            "Terminal tips".to_owned(),
+            format!(
+                "Find text in the scrollback{}: Enter jumps to the next match, Shift+Enter to the previous one, \
+                 Esc closes the bar. Ctrl+click a web link to open it. Change the text size{}{}{} or hold \
+                 Ctrl and scroll. When a shell exits normally its pane closes; after an error the output stays \
+                 so you can read it.",
+                hint(settings, "find"),
+                hint(settings, "font-larger"),
+                hint(settings, "font-smaller"),
+                hint(settings, "font-reset")
             ),
         ),
         (
