@@ -15,7 +15,7 @@ categories = ["command-line-utilities", "gui"]
 # GTK 3 release and depends on glib/gio/gdk/pango 0.18, so do not bump them alone.
 [dependencies]
 gtk = "0.18"
-glib = "0.18"
+glib = "0.20"
 gio = "0.18"
 gdk = "0.18"
 pango = "0.18"
