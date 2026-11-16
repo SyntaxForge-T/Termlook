@@ -5,6 +5,12 @@
 <p align="center"><strong>A workspace for every project.</strong><br>
 A native Linux terminal with split panes, project profiles, startup tasks, and live customization.</p>
 <p align="center">
+  <a href="https://github.com/SyntaxForge-T/Termlook/actions/workflows/ci.yml"><img src="https://github.com/SyntaxForge-T/Termlook/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
+  <a href="https://github.com/SyntaxForge-T/Termlook/releases"><img src="https://img.shields.io/github/v/release/SyntaxForge-T/Termlook?include_prereleases&amp;label=release" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/SyntaxForge-T/Termlook" alt="MIT license"></a>
+</p>
+<p align="center">
+  <a href="https://syntaxforge-t.github.io/Termlook/">Website</a> ·
   <a href="#installation">Installation</a> ·
   <a href="#projects">Projects</a> ·
   <a href="#startup-tasks-and-logs">Tasks &amp; logs</a> ·
@@ -32,9 +38,20 @@ Screenshots show the Rust application with a temporary demo project, not persona
 
 ## Installation
 
+### Debian package (recommended)
+
+Download `termlook_<version>_amd64.deb` and `SHA256SUMS` from the
+[latest release](https://github.com/SyntaxForge-T/Termlook/releases), then verify
+and install it on Ubuntu 24.04 or newer:
+
+```sh
+sha256sum -c SHA256SUMS
+sudo apt install ./termlook_*_amd64.deb
+```
+
 ### Build from source
 
-On Ubuntu 24.04, install a current stable [Rust toolchain](https://rustup.rs/) and the native development libraries:
+On Ubuntu 24.04, install [Rust](https://rustup.rs/) 1.88 or newer and the native development libraries:
 
 ```sh
 sudo apt update
@@ -213,6 +230,12 @@ cargo test --locked
 
 GUI lifecycle checks require a display or Xvfb. Build instructions, GUI tests,
 and contribution guidelines are in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+The [project website](https://syntaxforge-t.github.io/Termlook/) is a static
+site in [`site/`](site). Build it with `./scripts/build_site.sh`, check it with
+`python3 scripts/check_site.py _site`, and preview it with
+`python3 -m http.server --directory _site`. Changes merged to `main` deploy to
+GitHub Pages automatically.
 
 TermLook uses lazy terminal creation, cached interface widgets, and coalesced
 layout writes. Release builds enable thin LTO and strip symbols. These are
