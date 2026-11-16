@@ -1,6 +1,6 @@
 # Contributing to TermLook
 
-Install Rust 1.85+ and Ubuntu's `build-essential`, `pkg-config`, `libgtk-3-dev`
+Install Rust 1.88+ and Ubuntu's `build-essential`, `pkg-config`, `libgtk-3-dev`
 and `libvte-2.91-dev`. Run `cargo run --release --locked` from the checkout.
 
 Keep changes focused. The model, settings and storage modules contain no GTK
