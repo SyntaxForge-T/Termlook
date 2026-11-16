@@ -33,14 +33,17 @@ package=$1
 arch=$(dpkg-deb -f "$package" Architecture)
 [ "$package" = "dist/termlook_${version}_${arch}.deb" ]
 (cd dist && sha256sum "$(basename "$package")" > SHA256SUMS)
-cat > dist/release-notes.md <<NOTES
-Native Rust/GTK/VTE Debian package, tested on Ubuntu 24.04 $arch.
-
+changes=$(awk -v v="$version" '/^## \[/ { if (found) exit; if (index($0, "[" v "]")) { found = 1; next } } found { print }' CHANGELOG.md 2> /dev/null || true)
+{
+    printf 'Native Rust/GTK/VTE Debian package, tested on Ubuntu 24.04 %s.\n\n' "$arch"
+    if [ -n "$changes" ]; then printf '%s\n\n' "$changes"; fi
+    cat <<NOTES
 Install or upgrade with: sudo apt install ./$(basename "$package")
 Verify the download with: sha256sum -c SHA256SUMS
 
 Existing settings and layouts remain compatible. This download does not configure automatic updates.
 NOTES
+} > dist/release-notes.md
 if [ "$exists" = false ]; then gh release create "$tag" --repo "$repo" --target "$commit" --title "TermLook $version" --draft --notes-file dist/release-notes.md; fi
 gh release upload "$tag" "$package" dist/SHA256SUMS --repo "$repo" --clobber
 case "$version" in 0.*) prerelease=true ;; *) prerelease=false ;; esac

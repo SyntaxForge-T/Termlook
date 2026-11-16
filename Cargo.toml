@@ -1,6 +1,6 @@
 [package]
 name = "termlook"
-version = "0.4.2"
+version = "1.0.0"
 edition = "2021"
 rust-version = "1.88"
 description = "A native terminal with workspaces, split panes and live customization"

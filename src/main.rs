@@ -143,6 +143,11 @@ mod tests {
         pump(150);
         session.send("printf '%s' \"$TERMLOOK_TEST\" > survived\n");
         assert_eq!(wait_file(&dir.path().join("survived")), "alive");
+        // Searching the scrollback finds text literally and ignores case.
+        session.send("printf 'needle (x.y)\\n'\n");
+        pump(300);
+        assert!(session.search("NEEDLE (X.Y)", true));
+        assert!(!session.search("no such text anywhere", true));
         state.borrow_mut().action("grid");
         pump(200);
         assert_eq!(state.borrow().layout.tab().panes.len(), 4);
@@ -486,6 +491,28 @@ mod tests {
         let manager = named_dialog("project-manager");
         assert!(named_widget(manager.upcast_ref(), "delete-project-folder-only-project").is_none());
         manager.response(gtk::ResponseType::Cancel);
+        // A shell that exits normally closes its pane; a failed one stays and closes silently.
+        let selected = state.borrow().layout.selected;
+        let tabs = |state: &ui::Shared| state.borrow().layout.workspaces[selected].tabs.len();
+        let before = tabs(&state);
+        state.borrow_mut().action("new-tab");
+        pump(2300);
+        let finished = state.borrow().sessions[&state.borrow().layout.tab().active].clone();
+        finished.send("exit\n");
+        pump(1000);
+        assert_eq!(tabs(&state), before);
+        state.borrow_mut().action("new-tab");
+        pump(300);
+        let failed = state.borrow().sessions[&state.borrow().layout.tab().active].clone();
+        failed.send("exit 3\n");
+        pump(1000);
+        assert!(failed.exited());
+        assert_eq!(tabs(&state), before + 1);
+        state.borrow_mut().action("close-tab");
+        assert!(state.borrow().confirmation.is_none(), "nothing is running");
+        pump(100);
+        assert_eq!(tabs(&state), before);
+        drop((finished, failed));
         drop(project);
         state.borrow_mut().action("quit");
         close_response(&state, gtk::ResponseType::Cancel);

@@ -48,6 +48,11 @@ impl State {
         let Some(description) = description else {
             return;
         };
+        // Nothing is running any more: there is nothing to lose, so do not ask.
+        if self.sessions_ended(target) {
+            self.finish_close(target);
+            return;
+        }
         let dialog = gtk::MessageDialog::new(
             Some(&self.window),
             gtk::DialogFlags::MODAL | gtk::DialogFlags::DESTROY_WITH_PARENT,
@@ -56,6 +61,7 @@ impl State {
             &description,
         );
         dialog.set_title("Confirm close");
+        dialog.style_context().add_class("termlook-dialog");
         dialog.set_secondary_text(Some(
             "Running commands in these terminals will be stopped. Unsaved work may be lost.",
         ));
@@ -81,7 +87,30 @@ impl State {
         self.confirmation = Some(dialog.clone());
         dialog.show_all();
     }
-    fn finish_close(&mut self, target: Target) {
+    /// True when every terminal the target would close has already ended (or never started).
+    fn sessions_ended(&self, target: Target) -> bool {
+        let tabs = self.layout.workspaces.iter().flat_map(|w| &w.tabs);
+        let panes: Vec<_> = match target {
+            Target::Tab(id) => tabs
+                .filter(|t| t.id == id)
+                .flat_map(|t| t.panes.iter().map(|p| p.id))
+                .collect(),
+            Target::Pane { pane, .. } => vec![pane],
+            Target::Workspace(id) => self
+                .layout
+                .workspaces
+                .iter()
+                .filter(|w| w.id == id)
+                .flat_map(|w| &w.tabs)
+                .flat_map(|t| t.panes.iter().map(|p| p.id))
+                .collect(),
+            Target::Quit => tabs.flat_map(|t| t.panes.iter().map(|p| p.id)).collect(),
+        };
+        panes
+            .iter()
+            .all(|id| self.sessions.get(id).is_none_or(|s| s.exited()))
+    }
+    pub fn finish_close(&mut self, target: Target) {
         match target {
             Target::Tab(id) => self.layout.close_tab(id),
             Target::Workspace(id) => self.layout.remove_workspace(id),

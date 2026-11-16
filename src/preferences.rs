@@ -1,17 +1,105 @@
 use crate::ui::{enqueue, State};
 use gtk::prelude::*;
 use serde_json::Value;
-use std::collections::BTreeMap;
-use termlook::settings::{Settings, ACTIONS};
+use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
+use termlook::settings::{shortcut_label, Settings, ACTIONS};
+
+const ANSI_NAMES: [&str; 8] = [
+    "Black", "Red", "Green", "Yellow", "Blue", "Magenta", "Cyan", "White",
+];
 
 #[derive(Clone)]
 enum Field {
     Text(gtk::Entry),
     Bool(gtk::Switch),
     Number(gtk::SpinButton),
-    Json(gtk::TextBuffer),
     Choice(gtk::ComboBoxText),
+    Font(gtk::FontButton),
+    Color(gtk::ColorButton),
+    Palette(Vec<gtk::ColorButton>),
     Profiles(crate::projects::Editor),
+}
+/// `#rrggbb` for a color picked in a color button.
+fn hex(color: &gdk::RGBA) -> String {
+    let channel = |v: f64| (v * 255.0).round().clamp(0.0, 255.0) as u8;
+    format!(
+        "#{:02x}{:02x}{:02x}",
+        channel(color.red()),
+        channel(color.green()),
+        channel(color.blue())
+    )
+}
+fn set_color(button: &gtk::ColorButton, value: &str) {
+    if let Ok(color) = gdk::RGBA::parse(value) {
+        button.set_rgba(&color);
+    }
+}
+fn color_button(value: &str, title: &str) -> gtk::ColorButton {
+    let button = gtk::ColorButton::new();
+    button.set_use_alpha(false);
+    button.set_title(title);
+    button.set_valign(gtk::Align::Center);
+    set_color(&button, value);
+    button
+}
+fn choice(options: &[(&str, &str)], current: &str) -> gtk::ComboBoxText {
+    let input = gtk::ComboBoxText::new();
+    for (id, label) in options {
+        input.append(Some(id), label);
+    }
+    input.set_active_id(Some(current));
+    input.set_valign(gtk::Align::Center);
+    input
+}
+/// Plain modifier presses must not be recorded as a shortcut.
+fn is_modifier(key: u32) -> bool {
+    (0xffe1..=0xffee).contains(&key) || key == 0xfe03 || key == 0xff7f
+}
+/// A field that records the next key combination pressed in it. The stored
+/// value stays a GTK accelerator; the field shows it as `Ctrl+Shift+T`.
+fn shortcut_field(initial: &str) -> (gtk::Entry, Rc<RefCell<String>>) {
+    let accelerator = Rc::new(RefCell::new(initial.to_owned()));
+    let entry = gtk::Entry::new();
+    entry.set_editable(false);
+    entry.set_width_chars(22);
+    entry.set_valign(gtk::Align::Center);
+    entry.set_text(&shortcut_label(initial));
+    entry.set_placeholder_text(Some("not set"));
+    entry.set_tooltip_text(Some(
+        "Click here, then press the new shortcut. Backspace clears it.",
+    ));
+    let stored = accelerator.clone();
+    entry.connect_key_press_event(move |entry, event| {
+        use gdk::keys::constants as k;
+        let key = *event.keyval();
+        let mods = event.state() & gtk::accelerator_get_default_mod_mask();
+        // Tab still moves between fields; modifiers on their own do nothing yet.
+        if (key == *k::Tab && mods.is_empty())
+            || (key == *k::ISO_Left_Tab && mods == gdk::ModifierType::SHIFT_MASK)
+        {
+            return glib::Propagation::Proceed;
+        }
+        if is_modifier(key) || (key == *k::Escape && mods.is_empty()) {
+            return glib::Propagation::Stop;
+        }
+        if mods.is_empty() && (key == *k::BackSpace || key == *k::Delete) {
+            stored.borrow_mut().clear();
+            entry.set_text("");
+            return glib::Propagation::Stop;
+        }
+        let key = if key == *k::ISO_Left_Tab {
+            *k::Tab
+        } else {
+            key
+        };
+        let Some(name) = gtk::accelerator_name(key, mods).map(|name| name.to_string()) else {
+            return glib::Propagation::Stop;
+        };
+        entry.set_text(&shortcut_label(&name));
+        *stored.borrow_mut() = name;
+        glib::Propagation::Stop
+    });
+    (entry, accelerator)
 }
 impl Field {
     fn value(&self) -> Result<Value, String> {
@@ -21,11 +109,14 @@ impl Field {
             Self::Profiles(editor) => editor.value()?,
             Self::Bool(b) => Value::Bool(b.is_active()),
             Self::Number(n) => Value::from(n.value_as_int()),
-            Self::Json(b) => serde_json::from_str(
-                &b.text(&b.start_iter(), &b.end_iter(), true)
-                    .unwrap_or_default(),
-            )
-            .map_err(|e| e.to_string())?,
+            Self::Font(f) => Value::String(f.font().map(Into::into).unwrap_or_default()),
+            Self::Color(c) => Value::String(hex(&c.rgba())),
+            Self::Palette(buttons) => Value::Array(
+                buttons
+                    .iter()
+                    .map(|b| Value::String(hex(&b.rgba())))
+                    .collect(),
+            ),
         })
     }
     fn set(&self, v: &Value) {
@@ -37,7 +128,13 @@ impl Field {
             Self::Profiles(_) => {}
             Self::Bool(b) => b.set_active(v.as_bool().unwrap_or(false)),
             Self::Number(n) => n.set_value(v.as_f64().unwrap_or_default()),
-            Self::Json(b) => b.set_text(&serde_json::to_string_pretty(v).unwrap()),
+            Self::Font(f) => f.set_font(v.as_str().unwrap_or_default()),
+            Self::Color(c) => set_color(c, v.as_str().unwrap_or_default()),
+            Self::Palette(buttons) => {
+                for (button, color) in buttons.iter().zip(v.as_array().into_iter().flatten()) {
+                    set_color(button, color.as_str().unwrap_or_default());
+                }
+            }
         }
     }
 }
@@ -113,10 +210,20 @@ pub fn show_page(state: &mut State, page_index: u32) {
             "font",
             "Font",
             &appearance,
-            "Pango font description, e.g. Monospace 11",
+            "Pick a monospace font and its size",
         ),
-        ("foreground", "Text color", &appearance, "#RRGGBB"),
-        ("background", "Background color", &appearance, "#RRGGBB"),
+        (
+            "foreground",
+            "Text color",
+            &appearance,
+            "Default color of terminal text",
+        ),
+        (
+            "background",
+            "Background color",
+            &appearance,
+            "Terminal and window background",
+        ),
         (
             "background_dim",
             "Photo dimming (%)",
@@ -133,7 +240,7 @@ pub fn show_page(state: &mut State, page_index: u32) {
             "cursor",
             "Cursor shape",
             &appearance,
-            "block, ibeam or underline",
+            "Shape of the text cursor",
         ),
         (
             "blink",
@@ -194,7 +301,7 @@ pub fn show_page(state: &mut State, page_index: u32) {
             "default_profile",
             "Default profile",
             &profiles,
-            "Profile name from the JSON below, or empty to use global shell and current directory",
+            "Saved project whose shell and folder new tabs use. Leave empty for the global shell and the current folder.",
         ),
     ] {
         let row = gtk::Box::new(gtk::Orientation::Horizontal, 16);
@@ -212,15 +319,57 @@ pub fn show_page(state: &mut State, page_index: u32) {
         text.pack_start(&description, false, false, 0);
         row.pack_start(&text, true, true, 0);
         let value = &values[key];
-        let field = match value {
-            Value::Bool(b) => {
+        let current = value.as_str().unwrap_or_default();
+        let field = match (key, value) {
+            ("font", _) => {
+                let input = gtk::FontButton::new();
+                input.set_title("Terminal font");
+                input.set_show_size(true);
+                input.set_filter_func(Some(Box::new(
+                    |family: &pango::FontFamily, _: &pango::FontFace| family.is_monospace(),
+                )));
+                input.set_font(current);
+                input.set_valign(gtk::Align::Center);
+                row.pack_end(&input, false, false, 0);
+                Field::Font(input)
+            }
+            ("foreground" | "background", _) => {
+                let input = color_button(current, label);
+                row.pack_end(&input, false, false, 0);
+                Field::Color(input)
+            }
+            ("background_fit", _) => {
+                let input = choice(
+                    &[
+                        ("cover", "Cover"),
+                        ("contain", "Contain"),
+                        ("stretch", "Stretch"),
+                    ],
+                    current,
+                );
+                row.pack_end(&input, false, false, 0);
+                Field::Choice(input)
+            }
+            ("cursor", _) => {
+                let input = choice(
+                    &[
+                        ("block", "Block"),
+                        ("ibeam", "I-beam"),
+                        ("underline", "Underline"),
+                    ],
+                    current,
+                );
+                row.pack_end(&input, false, false, 0);
+                Field::Choice(input)
+            }
+            (_, Value::Bool(b)) => {
                 let input = gtk::Switch::new();
                 input.set_active(*b);
                 input.set_valign(gtk::Align::Center);
                 row.pack_end(&input, false, false, 0);
                 Field::Bool(input)
             }
-            Value::Number(_) => {
+            (_, Value::Number(_)) => {
                 let (min, max) = match key {
                     "scrollback" => (100.0, 1_000_000.0),
                     "padding" => (0.0, 40.0),
@@ -233,22 +382,9 @@ pub fn show_page(state: &mut State, page_index: u32) {
                 row.pack_end(&input, false, false, 0);
                 Field::Number(input)
             }
-            _ if key == "background_fit" => {
-                let input = gtk::ComboBoxText::new();
-                for (id, label) in [
-                    ("cover", "Cover"),
-                    ("contain", "Contain"),
-                    ("stretch", "Stretch"),
-                ] {
-                    input.append(Some(id), label);
-                }
-                input.set_active_id(value.as_str());
-                row.pack_end(&input, false, false, 0);
-                Field::Choice(input)
-            }
             _ => {
                 let input = gtk::Entry::new();
-                input.set_text(value.as_str().unwrap_or_default());
+                input.set_text(current);
                 input.set_width_chars(22);
                 input.set_valign(gtk::Align::Center);
                 row.pack_end(&input, false, false, 0);
@@ -305,24 +441,46 @@ pub fn show_page(state: &mut State, page_index: u32) {
     fields.insert("background_image".into(), Field::Text(image_path));
     note(
         &appearance,
-        "ANSI palette: exactly 16 #RRGGBB colors, as a JSON array.",
+        "ANSI palette: the 16 colors programs use. Top row normal, bottom row bright.",
     );
-    let view = gtk::TextView::new();
-    view.set_monospace(true);
-    view.set_wrap_mode(gtk::WrapMode::WordChar);
-    let buffer = view.buffer().unwrap();
-    buffer.set_text(&serde_json::to_string_pretty(&values["palette"]).unwrap());
-    let scroll = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
-    scroll.set_min_content_height(190);
-    scroll.add(&view);
-    appearance.pack_start(&scroll, true, true, 0);
-    fields.insert("palette".into(), Field::Json(buffer));
+    let grid = gtk::Grid::new();
+    grid.set_column_spacing(8);
+    grid.set_row_spacing(8);
+    let palette: Vec<gtk::ColorButton> = values["palette"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .enumerate()
+        .map(|(i, color)| {
+            let name = format!(
+                "{} {}",
+                if i < 8 { "Normal" } else { "Bright" },
+                ANSI_NAMES[i % 8].to_lowercase()
+            );
+            let button = color_button(color.as_str().unwrap_or_default(), &name);
+            button.set_tooltip_text(Some(&name));
+            grid.attach(&button, (i % 8) as i32, (i / 8) as i32, 1, 1);
+            button
+        })
+        .collect();
+    appearance.pack_start(&grid, false, false, 0);
+    let reset = gtk::Button::with_label("Reset palette");
+    reset.set_halign(gtk::Align::Start);
+    let colors = palette.clone();
+    reset.connect_clicked(move |_| {
+        let defaults: Vec<String> = Settings::default().palette;
+        for (button, color) in colors.iter().zip(&defaults) {
+            set_color(button, color);
+        }
+    });
+    appearance.pack_start(&reset, false, false, 0);
+    fields.insert("palette".into(), Field::Palette(palette));
     if let Field::Text(default) = &fields["default_profile"] {
         let editor = crate::projects::Editor::new(&state.settings.profiles, &dialog, default);
         profiles.pack_start(&editor.widget, false, false, 0);
         fields.insert("profiles".into(), Field::Profiles(editor));
     }
-    note(&shortcuts, "Use GTK accelerator notation: <Primary><Shift>t, <Alt>1, F2. Leave empty to disable an action. Press Apply to save; duplicates are rejected.");
+    note(&shortcuts, "Click a field and press the new shortcut. Backspace clears it, which disables the action. Duplicates are rejected when you apply.");
     let mut bindings = vec![];
     for (action, title, _) in ACTIONS {
         let row = gtk::Box::new(gtk::Orientation::Horizontal, 16);
@@ -331,14 +489,10 @@ pub fn show_page(state: &mut State, page_index: u32) {
         label.set_xalign(0.0);
         label.style_context().add_class("pref-row-title");
         row.pack_start(&label, true, true, 0);
-        let entry = gtk::Entry::new();
-        entry.set_text(state.settings.binding(action));
-        entry.set_width_chars(22);
-        entry.set_valign(gtk::Align::Center);
-        entry.set_placeholder_text(Some("not set"));
+        let (entry, accelerator) = shortcut_field(state.settings.binding(action));
         row.pack_end(&entry, false, false, 0);
         shortcuts.pack_start(&row, false, false, 0);
-        bindings.push((action.to_string(), entry));
+        bindings.push((action.to_string(), accelerator));
     }
     for (name, fg, bg) in [
         ("Charcoal", "#d8d6eb", "#202127"),
@@ -389,7 +543,7 @@ pub fn show_page(state: &mut State, page_index: u32) {
         data["keybindings"] = Value::Object(
             bindings
                 .iter()
-                .map(|(key, input)| (key.clone(), Value::String(input.text().into())))
+                .map(|(key, input)| (key.clone(), Value::String(input.borrow().clone())))
                 .collect(),
         );
         let result = serde_json::from_value::<Settings>(data)

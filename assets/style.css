@@ -119,3 +119,16 @@ scrollbar slider:hover { background: #666a7a; }
 .terminal-stack, .terminal-stack > box { background: transparent; }
 .dialog-action-area button.destructive-action { background: #ba4d5c; color: #ffffff; }
 .dialog-action-area button.destructive-action:hover { background: #d26372; }
+
+/* Dialogs stay dark even when the system theme is light. */
+.termlook-dialog, .preferences-window, .help-window { background: #1c1d24; color: #d4d5e0; }
+.termlook-dialog label { color: #d4d5e0; }
+.termlook-dialog button label, .preferences-window button label, .help-window button label { color: inherit; }
+/* A dialog whose only useful action is inside its body has no highlighted default button. */
+.no-primary .dialog-action-area button:last-child { background: #30323c; color: #e3e3e9; font-weight: normal; }
+.no-primary .dialog-action-area button:last-child:hover { background: #3b3e4a; }
+notebook > header > tabs > tab label { color: #a4a8ba; }
+textview, textview text { background: #1e2028; color: #e1e3ed; }
+.help-window .help-title { color: #efeff5; }
+searchbar, searchbar > revealer > box { background: #1c1d24; border-color: #2c2e38; color: #d4d5e0; }
+searchbar entry { background: #2d2f38; color: #eeeef3; border-color: #41434e; }

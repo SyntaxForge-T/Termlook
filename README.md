@@ -31,6 +31,7 @@ watch commands and logs side by side. No Python runtime is required.
 - **Saved projects** — choose a folder and shell, then open, edit, or delete the profile from a visible list.
 - **Startup tasks** — launch a project's commands in separate tabs with live output, exit status, and optional desktop notifications.
 - **Personal appearance** — change fonts, colors, cursor style, shortcuts, and background images without restarting shells.
+- **Everyday terminal comforts** — search the scrollback, Ctrl+click web links, zoom the text, and get Copy, Paste and Select all in the right-click menu.
 - **Confirmed closing** — closing a pane, tab, workspace, or quitting asks before ending sessions.
 - **Layout restoration** — restore workspace names, tabs, directories, and split geometry on the next launch.
 
@@ -80,7 +81,7 @@ from another terminal.
 
 ```sh
 ./scripts/build_deb.sh
-sudo apt install ./dist/termlook_0.4.2_amd64.deb
+sudo apt install ./dist/termlook_1.0.0_amd64.deb
 ```
 
 The package architecture follows the build machine; adjust the filename on other
@@ -164,6 +165,9 @@ image, and adjust dimming and **cover**, **contain**, or **stretch** fitting.
 Keep the image at its selected path. Supported formats depend on your system's
 image loader; common formats include PNG and JPEG.
 
+Fonts, colors, the 16-color palette and shortcuts are picked in the window: choose
+a font and colors from the pickers, click a shortcut field and press the keys.
+
 Configuration lives in `~/.config/termlook/`, or `$XDG_CONFIG_HOME/termlook/`:
 
 | File | Purpose |
@@ -187,6 +191,9 @@ leave the active settings unchanged.
 | Focus pane / show all | Ctrl+Shift+Enter |
 | Next / previous tab | Ctrl+Tab / Ctrl+Shift+Tab |
 | Copy / paste | Ctrl+Shift+C / Ctrl+Shift+V |
+| Find in scrollback | Ctrl+Shift+F (Enter / Shift+Enter for next / previous) |
+| Larger / smaller / default text | Ctrl+= / Ctrl+- / Ctrl+0, or Ctrl+scroll |
+| Open a link | Ctrl+click |
 | Rename tab | F2 |
 | Settings / reload | Ctrl+, / Ctrl+Shift+R |
 | Help | F1 |
@@ -199,7 +206,9 @@ Tooltips reflect your configured shortcuts. Right-click a terminal for Copy/Past
 
 ## Session behavior
 
-Switching tabs or workspaces keeps opened sessions running. Restored tabs start
+Switching tabs or workspaces keeps opened sessions running. When a shell exits
+normally its pane closes; after a failure the output stays so you can read it,
+and closing it needs no confirmation because nothing is running. Restored tabs start
 their shells lazily when selected, while project tasks start when explicitly
 launched through the project workflow.
 
