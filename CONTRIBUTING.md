@@ -1,6 +1,6 @@
 # Contributing to TermLook
 
-Install Rust 1.85+ and Ubuntu's `build-essential`, `pkg-config`, `libgtk-3-dev`
+Install Rust 1.88+ and Ubuntu's `build-essential`, `pkg-config`, `libgtk-3-dev`
 and `libvte-2.91-dev`. Run `cargo run --release --locked` from the checkout.
 
 Keep changes focused. The model, settings and storage modules contain no GTK
@@ -27,8 +27,26 @@ Also test affected interactions on a real desktop, including X11/Wayland and
 tray behavior where relevant. Commit `Cargo.lock`; do not commit `target/` or
 built packages. Keep `VERSION` and the package version in `Cargo.toml` in sync.
 
+Pull requests run the [CI workflow](.github/workflows/ci.yml): lint, tests, the
+minimum supported Rust version, the GUI lifecycle regression and the Debian
+package. `CI gate` passes only when all of them pass, and it must be green before
+merging. A dependency audit runs when `Cargo.toml` or `Cargo.lock` change. Keep
+the gtk-rs crates (`gtk`, `gdk`, `glib`, `gio`, `pango`) on the same 0.18 release
+line; GTK 3 bindings cannot be mixed with newer versions.
+
+Website changes live in `site/` and are checked in CI. Preview them locally:
+
+```sh
+./scripts/build_site.sh
+python3 scripts/check_site.py _site
+python3 -m http.server --directory _site 8000
+```
+
 Target `main` in pull requests. Explain the resulting behavior, relevant tests,
 and limitations. Report your distribution, desktop, display server, version and
 shell for desktop issues. Remove private terminal output and credentials from logs.
+
+Please follow the [code of conduct](CODE_OF_CONDUCT.md). Report security problems
+privately as described in [SECURITY.md](SECURITY.md).
 
 Contributions are made under the [MIT license](LICENSE).

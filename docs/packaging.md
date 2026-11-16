@@ -2,7 +2,7 @@
 
 ## Native Debian package (Ubuntu 24.04)
 
-Install Rust 1.85+, `build-essential`, `pkg-config`, `libgtk-3-dev` and
+Install Rust 1.88+, `build-essential`, `pkg-config`, `libgtk-3-dev` and
 `libvte-2.91-dev`, then build without root:
 
 ```sh

@@ -2,15 +2,21 @@
 name = "termlook"
 version = "0.4.2"
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.88"
 description = "A native terminal with workspaces, split panes and live customization"
 license = "MIT"
 repository = "https://github.com/SyntaxForge-T/Termlook"
+homepage = "https://syntaxforge-t.github.io/Termlook/"
+readme = "README.md"
+keywords = ["terminal", "gtk", "vte", "workspaces", "split-panes"]
+categories = ["command-line-utilities", "gui"]
 
+# The gtk-rs GTK 3 bindings must all share one release line. gtk 0.18 is the last
+# GTK 3 release and depends on glib/gio/gdk/pango 0.18, so do not bump them alone.
 [dependencies]
 gtk = "0.18"
 glib = "0.18"
-gio = "0.22"
+gio = "0.18"
 gdk = "0.18"
 pango = "0.18"
 libc = "0.2"
